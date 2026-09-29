@@ -245,7 +245,7 @@ button.noimg{width:100%;height:100%;border:0;background:transparent;cursor:point
 <!-- 책장 -->
 <main id="shelfView" class="view" hidden>
   <header class="bar shelf-head">
-    <h1>📚 내 이야기책 <small style="font-size:16px;font-weight:600;color:var(--ink2)">버전 14 · 가운데 위치 보정</small></h1>
+    <h1>📚 내 이야기책 <small style="font-size:16px;font-weight:600;color:var(--ink2)">버전 15 · 인쇄 그림 원래 크기</small></h1>
     <button id="newBtn" class="btn primary">＋ 새 이야기책</button>
     <button id="importBtn" class="btn">파일 불러오기</button>
     <button id="exportAllBtn" class="btn">전체 파일로 저장</button>
@@ -1176,10 +1176,10 @@ async function buildPrint(o) {
   const title = titleOf(book), tpx = title.length <= 10 ? 56 : title.length <= 20 ? 44 : 34;
   const cover = async (bw, bh) => `<div class="pcover"><h1 style="font-size:${tpx}px">${esc(title)}</h1>${coverPage ? await pic(coverPage, bw, bh, false, o.img === 'line' && book.paintCover !== false) : ''}${o.name ? '<div class="pname">이름 <i></i></div>' : ''}</div>`;
   const halves = [];   // 소책자용 낱쪽 목록
-  halves.push({ html: await cover(100, 94) });
+  halves.push({ html: await cover(118, 110) });
   let num = 0;
   for (const p of book.pages) {
-    halves.push({ html: await pic(p, 100, 146, o.sound, o.img === 'line' && !!p.paint), num: ++num });
+    halves.push({ html: await pic(p, 118, 172, o.sound, o.img === 'line' && !!p.paint), num: ++num });
     const t = textHtml(p, o.text, o.size);
     halves.push({ html: `<div class="ptext" style="font-size:${t.px}px">${t.html}</div>`, num: ++num });
   }
@@ -1199,7 +1199,7 @@ async function buildPrint(o) {
       sheets.push(sheet('book', `${half(halves[2 * k + 1], 'l')}${half(halves[n - 2 - 2 * k], 'r')}${tick}${STAPLES}${lab('뒷면')}`));
     }
   } else {
-    sheets.push(sheet('spread', `<div class="phalf full">${await cover(153, 94)}</div><div class="plabel"><b>1</b>번 종이 · 표지</div>`));
+    sheets.push(sheet('spread', `<div class="phalf full">${await cover(180, 110)}</div><div class="plabel"><b>1</b>번 종이 · 표지</div>`));
     for (let i = 1; i < halves.length; i += 2) sheets.push(sheet('spread', `${half(halves[i], 'l')}${half(halves[i + 1], 'r')}<div class="plabel"><b>${(i + 1) / 2 + 1}</b>번 종이</div>`));
   }
   return sheets;
