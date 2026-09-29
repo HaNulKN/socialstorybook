@@ -1,0 +1,829 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>이야기책</title>
+<style>
+:root{
+  --bg:#fff3dc; --bar:#ffe2ad; --ink:#4a3320; --ink2:#7a5c40;
+  --accent:#f08a24; --accent-d:#c96d0f; --card:#fffaf0; --line:#ecd3a8;
+  --wood:#b5773a; --wood-d:#8a5626; --page-l:#fffdf6; --page-r:#fffaee;
+  --danger:#d9534f; --hl:#ffe14d;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);
+  font-family:"Malgun Gothic","Apple SD Gothic Neo","Noto Sans KR","NanumGothic",system-ui,sans-serif;
+  -webkit-tap-highlight-color:transparent}
+body{overflow:hidden}
+button,input,textarea{font:inherit;color:inherit}
+:focus-visible{outline:4px solid #2b7de9;outline-offset:2px}
+input[type=checkbox]{width:28px;height:28px;accent-color:var(--accent);margin:0;flex:none}
+input[type=range]{accent-color:var(--accent);height:40px;width:170px;margin:0}
+
+.btn{min-height:56px;padding:0 22px;border:3px solid var(--wood);border-radius:18px;background:#fff;
+  color:var(--ink);font-size:20px;font-weight:700;cursor:pointer;box-shadow:0 3px 0 var(--wood);
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;white-space:nowrap;
+  touch-action:manipulation;user-select:none}
+.btn:active:not(:disabled){transform:translateY(3px);box-shadow:0 0 0 var(--wood)}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn.primary{background:var(--accent);color:#fff;border-color:var(--accent-d);box-shadow:0 3px 0 var(--accent-d)}
+.btn.primary:active:not(:disabled){box-shadow:0 0 0 var(--accent-d)}
+.btn.danger{color:var(--danger);border-color:var(--danger);box-shadow:0 3px 0 var(--danger)}
+.btn.small{min-height:48px;padding:0 16px;font-size:18px}
+.btn.toggle[aria-pressed=true]{background:#2f9e5b;color:#fff;border-color:#1f7a43;box-shadow:0 3px 0 #1f7a43}
+.chk{display:inline-flex;align-items:center;gap:10px;font-size:20px;font-weight:700;cursor:pointer;
+  min-height:56px;padding:0 6px;user-select:none}
+
+.view{height:100vh;height:100dvh;display:flex;flex-direction:column}
+.bar{display:flex;align-items:center;flex-wrap:wrap;gap:10px 14px;padding:10px 18px;background:var(--bar);
+  border-bottom:3px solid var(--line)}
+.bar.bottom{border-bottom:0;border-top:3px solid var(--line);justify-content:center}
+.bar .row{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:10px 16px;width:100%}
+.notice{background:#ffefc2;border-bottom:3px solid #f0c060;padding:10px 18px;font-size:18px;font-weight:700;text-align:center}
+.stat{font-size:17px;color:var(--ink2);font-weight:700;margin-left:auto}
+.stat.warn{color:var(--danger)}
+
+/* ===== 책장 ===== */
+#shelfView{overflow:auto}
+.shelf-head{position:sticky;top:0;z-index:5}
+.shelf-head h1{margin:0;font-size:36px;flex:1 1 auto;min-width:220px}
+.shelf-body{padding:26px 24px 60px;max-width:1500px;width:100%;margin:0 auto}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:26px}
+.card{background:var(--card);border:3px solid var(--line);border-radius:22px;padding:14px;display:flex;flex-direction:column;
+  gap:10px;box-shadow:0 6px 0 var(--line)}
+.card .cover{aspect-ratio:4/5;border-radius:14px;background:#f6e6c6 center/cover;overflow:hidden;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;border:2px solid var(--line)}
+.card .cover img{width:100%;height:100%;object-fit:cover;display:block}
+.card .cover .ph{font-size:64px;opacity:.5}
+.card h3{margin:0;font-size:24px;line-height:1.3;cursor:pointer;overflow:hidden;text-overflow:ellipsis;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;word-break:keep-all}
+.card .meta{font-size:17px;color:var(--ink2)}
+.card .acts{display:flex;gap:8px;margin-top:auto}
+.card .acts .btn{flex:1;padding:0 8px}
+.empty{text-align:center;padding:70px 20px;font-size:26px;line-height:1.8;color:var(--ink2)}
+.empty .btn{margin-top:20px;font-size:26px;min-height:72px;padding:0 40px}
+
+/* ===== 책 보기 ===== */
+.titlewrap{flex:1 1 200px;min-width:160px}
+#bTitle{margin:0;font-size:30px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.titlein{width:100%;min-height:56px;font-size:26px;font-weight:700;border:3px solid var(--wood);border-radius:14px;padding:0 14px;background:#fff}
+#stage{flex:1 1 0;min-height:0;display:flex;align-items:center;justify-content:center;gap:10px;padding:8px;overflow:hidden;
+  touch-action:pan-y}
+.nav{flex:none;width:72px;height:120px;border:3px solid var(--wood);border-radius:22px;background:#fff;color:var(--wood-d);
+  font-size:40px;font-weight:900;cursor:pointer;box-shadow:0 4px 0 var(--wood);touch-action:manipulation}
+.nav:active:not(:disabled){transform:translateY(3px);box-shadow:0 1px 0 var(--wood)}
+.nav:disabled{opacity:.25;cursor:default}
+.frame{flex:none;background:linear-gradient(#c58445,#a86a30);padding:12px;border-radius:20px;box-shadow:0 12px 30px rgba(90,50,10,.35)}
+.book{position:relative;perspective:2600px;font-size:20px;background:var(--page-r);border-radius:8px}
+.half{position:absolute;top:0;height:100%;width:50%;overflow:hidden}
+.half.left{left:0;background:var(--page-l);border-radius:8px 0 0 8px}
+.half.right{left:50%;background:var(--page-r);border-radius:0 8px 8px 0}
+.spine{position:absolute;left:50%;top:0;height:100%;width:8%;transform:translateX(-50%);z-index:2;pointer-events:none;
+  background:linear-gradient(90deg,rgba(90,50,10,0) 0%,rgba(90,50,10,.16) 42%,rgba(90,50,10,.30) 50%,rgba(90,50,10,.16) 58%,rgba(90,50,10,0) 100%)}
+.pane{position:absolute;inset:0}
+.imgframe{position:absolute;inset:6%;background:#fff;border-radius:14px;display:flex;align-items:center;justify-content:center;
+  overflow:hidden;box-shadow:inset 0 0 0 2px #f0e2c4}
+.pane.tools .imgframe{bottom:19%}
+.imgframe img{max-width:100%;max-height:100%;object-fit:contain;display:block;user-select:none;-webkit-user-drag:none}
+.noimg{color:#bda57f;font-size:1.1em;font-weight:700}
+button.noimg{width:100%;height:100%;border:0;background:transparent;cursor:pointer;font-size:24px;color:var(--wood-d)}
+.imgtools{position:absolute;left:4%;right:4%;bottom:3%;display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.text-pane{overflow-y:auto;display:flex;padding:7% 8%}
+.txt{margin:auto 0;width:100%;font-size:1.5em;line-height:1.75;white-space:pre-wrap;word-break:keep-all;overflow-wrap:anywhere;
+  font-weight:600;color:#3d2a18}
+.txt .hint{color:#c2ab85;font-size:.7em;font-weight:400}
+.w{border-radius:.18em;transition:background-color .08s}
+.w.on{background:var(--hl);box-shadow:0 0 0 .1em var(--hl)}
+.ta{width:100%;height:100%;resize:none;border:3px dashed var(--wood);border-radius:14px;background:#fff;padding:.5em .6em;
+  font-size:1.5em;line-height:1.7;font-weight:600;color:#3d2a18;font-family:inherit;word-break:keep-all}
+
+.leaf{position:absolute;top:0;height:100%;width:50%;z-index:3;transform-style:preserve-3d;
+  transition:transform .8s cubic-bezier(.45,.05,.25,1);will-change:transform}
+.leaf.next{left:50%;transform-origin:left center}
+.leaf.prev{left:0;transform-origin:right center}
+.leaf.next.turn{transform:rotateY(-180deg)}
+.leaf.prev.turn{transform:rotateY(180deg)}
+.face{position:absolute;inset:0;overflow:hidden;backface-visibility:hidden;-webkit-backface-visibility:hidden}
+.face.back{transform:rotateY(180deg)}
+.leaf.next .face{background:var(--page-r);border-radius:0 8px 8px 0}
+.leaf.prev .face{background:var(--page-l);border-radius:8px 0 0 8px}
+.leaf.next .face.back{background:var(--page-l)}
+.leaf.prev .face.back{background:var(--page-r)}
+.face::after{content:"";position:absolute;inset:0;pointer-events:none;background:#3a2005;opacity:0}
+.leaf.turn .face::after{animation:shade .8s ease-in-out}
+@keyframes shade{0%{opacity:0}50%{opacity:.28}100%{opacity:0}}
+
+#pageInfo{font-size:24px;font-weight:800;min-width:110px;text-align:center}
+.speed{display:inline-flex;align-items:center;gap:10px;font-size:20px;font-weight:700}
+.speed output{min-width:58px;font-variant-numeric:tabular-nums}
+.grp{display:inline-flex;gap:8px}
+#readBtn{min-width:190px;font-size:26px;min-height:64px}
+#readBtn.on{background:#d9534f;border-color:#a93a37;box-shadow:0 3px 0 #a93a37}
+
+#toast{position:fixed;left:50%;bottom:28px;transform:translate(-50%,30px);opacity:0;pointer-events:none;z-index:50;
+  background:#3d2a18;color:#fff;padding:16px 26px;border-radius:18px;font-size:21px;font-weight:700;max-width:90vw;
+  text-align:center;transition:.25s;white-space:pre-line}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+#modal{position:fixed;inset:0;background:rgba(60,35,10,.5);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px}
+#modal .box{background:#fffaf0;border:4px solid var(--wood);border-radius:26px;padding:30px;max-width:520px;width:100%;text-align:center}
+#modal p{margin:0 0 26px;font-size:26px;line-height:1.6;font-weight:700;white-space:pre-line}
+#modal .btns{display:flex;gap:16px;justify-content:center}
+#modal .btn{min-width:150px;min-height:64px;font-size:24px}
+
+@media (max-width:820px){
+  .nav{width:52px;height:96px;font-size:30px}
+  .btn{padding:0 16px;font-size:18px}
+  #bTitle{font-size:24px}
+}
+@media (prefers-reduced-motion:reduce){.leaf{transition-duration:.01s}.leaf.turn .face::after{animation:none}}
+</style>
+</head>
+<body>
+
+<div id="notice" class="notice" hidden></div>
+
+<!-- 책장 -->
+<main id="shelfView" class="view" hidden>
+  <header class="bar shelf-head">
+    <h1>📚 내 이야기책</h1>
+    <button id="newBtn" class="btn primary">＋ 새 이야기책</button>
+    <button id="importBtn" class="btn">파일 불러오기</button>
+    <button id="exportAllBtn" class="btn">전체 파일로 저장</button>
+  </header>
+  <div class="shelf-body">
+    <div id="empty" class="empty" hidden>
+      아직 이야기책이 없어요.<br>“새 이야기책”을 눌러 시작해요!<br>
+      <button id="newBtn2" class="btn primary">＋ 새 이야기책</button>
+    </div>
+    <div id="grid" class="grid"></div>
+  </div>
+</main>
+
+<!-- 책 -->
+<section id="bookView" class="view" hidden>
+  <header class="bar top">
+    <button id="backBtn" class="btn">← 책장</button>
+    <div class="titlewrap">
+      <h1 id="bTitle"></h1>
+      <input id="titleIn" class="titlein" maxlength="60" placeholder="이야기책 제목" aria-label="책 제목" hidden>
+    </div>
+    <button id="editBtn" class="btn toggle" aria-pressed="false">✏️ 편집 모드</button>
+    <label class="chk"><input type="checkbox" id="soundChk"> 쪽 넘김 소리</label>
+    <button id="saveFileBtn" class="btn">이 책 파일로 저장</button>
+    <span id="saveStat" class="stat" role="status"></span>
+  </header>
+
+  <div id="stage">
+    <button id="prevBtn" class="nav" aria-label="이전 쪽">◀</button>
+    <div class="frame" id="frame">
+      <div class="book" id="book">
+        <div class="half left" id="paneL"></div>
+        <div class="half right" id="paneR"></div>
+        <div class="spine"></div>
+      </div>
+    </div>
+    <button id="nextBtn" class="nav" aria-label="다음 쪽">▶</button>
+  </div>
+
+  <footer class="bar bottom">
+    <div class="row" id="editRow" hidden>
+      <button id="addBtn" class="btn">＋ 쪽 추가</button>
+      <button id="delBtn" class="btn danger">🗑 쪽 삭제</button>
+      <button id="moveLBtn" class="btn">◀ 앞으로 옮기기</button>
+      <button id="moveRBtn" class="btn">뒤로 옮기기 ▶</button>
+    </div>
+    <div class="row" id="readRow">
+      <span id="pageInfo"></span>
+      <button id="readBtn" class="btn primary" aria-pressed="false">🔊 읽어주기</button>
+      <label class="speed">읽기 속도
+        <input type="range" id="rate" min="0.5" max="1.5" step="0.1" value="0.9" aria-label="읽기 속도">
+        <output id="rateOut">0.9배</output></label>
+      <label class="chk"><input type="checkbox" id="autoChk"> 다 읽으면 다음 쪽으로</label>
+      <span class="grp">
+        <button id="fsMinus" class="btn" aria-label="글자 작게">A−</button>
+        <button id="fsPlus" class="btn" aria-label="글자 크게">A+</button>
+      </span>
+    </div>
+  </footer>
+</section>
+
+<input type="file" id="imgFile" accept="image/*" hidden>
+<input type="file" id="importFile" accept=".json,.storybook.json,application/json" multiple hidden>
+<div id="toast" role="status" aria-live="polite"></div>
+<div id="modal" hidden><div class="box"><p id="modalMsg"></p><div class="btns">
+  <button id="modalNo" class="btn">취소</button><button id="modalOk" class="btn primary">확인</button></div></div></div>
+
+<script>
+(() => {
+'use strict';
+
+/* ---------- 도우미 ---------- */
+const $ = (s) => document.querySelector(s);
+function h(tag, attrs, ...kids) {
+  const e = document.createElement(tag);
+  if (attrs) for (const [k, v] of Object.entries(attrs)) {
+    if (k === 'class') e.className = v;
+    else if (k === 'text') e.textContent = v;
+    else if (k.startsWith('on')) e.addEventListener(k.slice(2), v);
+    else if (v === true) e.setAttribute(k, '');
+    else if (v !== false && v != null) e.setAttribute(k, v);
+  }
+  for (const c of kids.flat()) { if (c == null || c === false) continue; e.append(c.nodeType ? c : document.createTextNode(c)); }
+  return e;
+}
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : v; } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(k, String(v)); } catch {} }
+};
+const blankPage = () => ({ id: uid(), img: null, text: '' });
+const titleOf = (b) => b.title.trim() || '제목 없는 이야기책';
+
+let toastTimer;
+function toast(msg, ms = 3800) {
+  const t = $('#toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), ms);
+}
+let modalResolve = null;
+function confirmDialog(msg, okLabel = '확인') {
+  return new Promise(res => {
+    $('#modalMsg').textContent = msg; $('#modalOk').textContent = okLabel;
+    $('#modal').hidden = false; $('#modalNo').focus(); modalResolve = res;
+  });
+}
+function closeModal(v) { $('#modal').hidden = true; const r = modalResolve; modalResolve = null; if (r) r(v); }
+$('#modalOk').onclick = () => closeModal(true);
+$('#modalNo').onclick = () => closeModal(false);
+
+/* ---------- 상태 ---------- */
+let books = [];
+let cur = null;            // { book, idx, edit }
+let flipping = false;
+let rate = clamp(Math.round(parseFloat(store.get('ssb.rate', '0.9')) * 10) / 10 || 0.9, 0.5, 1.5);
+let fontScale = clamp(parseFloat(store.get('ssb.fs', '1')) || 1, 0.6, 2.4);
+let soundOn = store.get('ssb.sound', '1') === '1';
+let autoNext = store.get('ssb.auto', '0') === '1';
+
+/* ---------- IndexedDB ---------- */
+let db = null, dbOK = false;
+function dbOpen() {
+  return new Promise((res, rej) => {
+    if (!window.indexedDB) return rej(new Error('IndexedDB 없음'));
+    let req;
+    try { req = indexedDB.open('socialstorybook', 1); } catch (e) { return rej(e); }
+    req.onupgradeneeded = () => { req.result.createObjectStore('books', { keyPath: 'id' }); };
+    req.onsuccess = () => res(req.result);
+    req.onerror = () => rej(req.error);
+    req.onblocked = () => rej(new Error('blocked'));
+  });
+}
+const dbAll = () => new Promise((res, rej) => {
+  const r = db.transaction('books').objectStore('books').getAll();
+  r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
+});
+const dbPut = (b) => new Promise((res, rej) => {
+  const tx = db.transaction('books', 'readwrite'); tx.objectStore('books').put(b);
+  tx.oncomplete = () => res(); tx.onerror = tx.onabort = () => rej(tx.error || new Error('저장 실패'));
+});
+const dbDel = (id) => new Promise((res, rej) => {
+  const tx = db.transaction('books', 'readwrite'); tx.objectStore('books').delete(id);
+  tx.oncomplete = () => res(); tx.onerror = tx.onabort = () => rej(tx.error || new Error('삭제 실패'));
+});
+function showNoDbNotice() {
+  const n = $('#notice');
+  n.textContent = '이 브라우저에서는 자동 저장을 쓸 수 없어요. 만든 이야기책은 “파일로 저장”을 이용해 꼭 저장해 주세요.';
+  n.hidden = false;
+}
+
+/* ---------- 자동 저장 ---------- */
+let dirty = null, saveTimer = null;
+function setStatus(kind) {
+  const s = $('#saveStat');
+  const map = { saving: ['저장 중…', false], saved: ['✓ 자동 저장됨', false],
+    nodb: ['⚠ 자동 저장 안 됨 · 파일로 저장하세요', true], fail: ['⚠ 저장 실패 · 파일로 저장하세요', true], '': ['', false] };
+  s.textContent = map[kind][0]; s.classList.toggle('warn', map[kind][1]);
+}
+function touch() {
+  if (!cur) return;
+  cur.book.updatedAt = Date.now(); dirty = cur.book;
+  setStatus(dbOK ? 'saving' : 'nodb');
+  clearTimeout(saveTimer); saveTimer = setTimeout(flushSave, 600);
+}
+async function flushSave() {
+  clearTimeout(saveTimer); saveTimer = null;
+  const b = dirty; if (!b) return;
+  dirty = null;
+  if (!dbOK) { setStatus('nodb'); return; }
+  try { await dbPut(b); if (!dirty) setStatus('saved'); }
+  catch (e) { console.error(e); setStatus('fail'); showNoDbNotice(); }
+}
+
+/* ---------- 효과음 (Web Audio 합성) ---------- */
+let actx = null;
+function audio() {
+  if (!actx) { const AC = window.AudioContext || window.webkitAudioContext; if (AC) { try { actx = new AC(); } catch {} } }
+  if (actx && actx.state === 'suspended') actx.resume().catch(() => {});
+  return actx;
+}
+function noiseBuf(ctx, dur) {
+  const b = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * dur), ctx.sampleRate), d = b.getChannelData(0);
+  for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  return b;
+}
+function playFlip() {
+  if (!soundOn) return;
+  const ctx = audio(); if (!ctx) return;
+  try {
+    const t = ctx.currentTime, dur = 0.5;
+    // 종이가 스치는 소리
+    const src = ctx.createBufferSource(); src.buffer = noiseBuf(ctx, dur);
+    const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.Q.value = 0.7;
+    bp.frequency.setValueAtTime(900, t); bp.frequency.exponentialRampToValueAtTime(3800, t + 0.32);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.32, t + 0.12);
+    g.gain.exponentialRampToValueAtTime(0.10, t + 0.32); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    src.connect(bp).connect(g).connect(ctx.destination); src.start(t); src.stop(t + dur);
+    // 종이가 내려앉는 짧은 소리
+    const t2 = t + 0.5, s2 = ctx.createBufferSource(); s2.buffer = noiseBuf(ctx, 0.08);
+    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 1400;
+    const g2 = ctx.createGain();
+    g2.gain.setValueAtTime(0.0001, t2); g2.gain.exponentialRampToValueAtTime(0.22, t2 + 0.008);
+    g2.gain.exponentialRampToValueAtTime(0.0001, t2 + 0.08);
+    s2.connect(lp).connect(g2).connect(ctx.destination); s2.start(t2); s2.stop(t2 + 0.09);
+  } catch {}
+}
+
+/* ---------- 책장 ---------- */
+const fmtDate = (t) => { const d = new Date(t); return `${d.getFullYear()}.${d.getMonth() + 1}.${d.getDate()}`; };
+function renderShelf() {
+  const grid = $('#grid'); grid.replaceChildren();
+  const list = [...books].sort((a, b) => b.updatedAt - a.updatedAt);
+  $('#empty').hidden = list.length > 0;
+  $('#exportAllBtn').disabled = !list.length;
+  for (const b of list) {
+    const coverPage = b.pages.find(p => p.img);
+    const open = () => openBook(b.id);
+    grid.append(h('article', { class: 'card' },
+      h('div', { class: 'cover', onclick: open, role: 'button', tabindex: '0', 'aria-label': titleOf(b) + ' 열기',
+          onkeydown: (e) => { if (e.key === 'Enter') open(); } },
+        coverPage ? h('img', { src: coverPage.img, alt: '' }) : h('span', { class: 'ph', text: '📖' })),
+      h('h3', { text: titleOf(b), onclick: open }),
+      h('div', { class: 'meta', text: `${b.pages.length}쪽 · ${fmtDate(b.updatedAt)} 수정` }),
+      h('div', { class: 'acts' },
+        h('button', { class: 'btn primary small', onclick: open }, '열기'),
+        h('button', { class: 'btn small', onclick: () => exportBooks([b]), title: '이 책을 파일로 저장' }, '저장'),
+        h('button', { class: 'btn small danger', onclick: () => deleteBook(b) }, '삭제'))));
+  }
+}
+function showShelf() {
+  $('#bookView').hidden = true; $('#shelfView').hidden = false; renderShelf();
+}
+async function newBook() {
+  const now = Date.now();
+  const b = { id: uid(), title: '새 이야기책', createdAt: now, updatedAt: now, pages: [blankPage()] };
+  books.push(b);
+  if (dbOK) { try { await dbPut(b); } catch { dbOK = false; showNoDbNotice(); } }
+  openBook(b.id, true);
+}
+async function deleteBook(b) {
+  if (!await confirmDialog(`“${titleOf(b)}” 이야기책을 지울까요?\n지운 책은 되돌릴 수 없어요.`, '지우기')) return;
+  books = books.filter(x => x.id !== b.id);
+  if (dbOK) { try { await dbDel(b.id); } catch (e) { console.error(e); toast('저장소에서 지우지 못했어요.'); } }
+  renderShelf(); toast('이야기책을 지웠어요.');
+}
+
+/* ---------- 파일 저장 / 불러오기 ---------- */
+function download(name, obj) {
+  const blob = new Blob([JSON.stringify(obj)], { type: 'application/json' });
+  const a = h('a', { href: URL.createObjectURL(blob), download: name });
+  document.body.append(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
+}
+const safeName = (s) => (s.replace(/[\\/:*?"<>|\x00-\x1f]/g, '').trim().slice(0, 40)) || '이야기책';
+function exportBooks(list) {
+  if (!list.length) return;
+  const name = list.length === 1 ? safeName(titleOf(list[0])) :
+    '이야기책-전체-' + fmtDate(Date.now()).replace(/\./g, '-');
+  download(name + '.storybook.json', { format: 'storybook', version: 1, exportedAt: Date.now(), books: list });
+  toast(`${list.length}권을 파일로 저장했어요.`);
+}
+function normBook(o) {
+  if (!o || typeof o !== 'object' || !Array.isArray(o.pages)) return null;
+  const pages = o.pages.map(p => ({
+    id: uid(),
+    img: p && typeof p.img === 'string' && p.img.startsWith('data:image/') ? p.img : null,
+    text: p && typeof p.text === 'string' ? p.text : ''
+  }));
+  if (!pages.length) pages.push(blankPage());
+  const now = Date.now();
+  return { id: uid(), title: String(o.title || '').slice(0, 60) || '제목 없는 이야기책',
+    createdAt: Number(o.createdAt) || now, updatedAt: now, pages };
+}
+async function importFiles(files) {
+  let ok = 0; const bad = [];
+  for (const f of files) {
+    try {
+      const data = JSON.parse(await f.text());
+      const arr = Array.isArray(data) ? data : Array.isArray(data.books) ? data.books : [data];
+      const norm = arr.map(normBook).filter(Boolean);
+      if (!norm.length) throw new Error('책 없음');
+      for (const b of norm) {
+        books.push(b); ok++;
+        if (dbOK) { try { await dbPut(b); } catch { dbOK = false; showNoDbNotice(); } }
+      }
+    } catch { bad.push(f.name); }
+  }
+  renderShelf();
+  toast((ok ? `${ok}권을 불러왔어요.` : '') + (bad.length ? `${ok ? '\n' : ''}불러오지 못한 파일: ${bad.join(', ')}` : ''), 5000);
+}
+
+/* ---------- 책 열기 / 화면 ---------- */
+async function openBook(id, edit = false) {
+  const b = books.find(x => x.id === id); if (!b) return;
+  cur = { book: b, idx: 0, edit };
+  $('#shelfView').hidden = true; $('#bookView').hidden = false;
+  setStatus(dbOK ? '' : 'nodb');
+  renderBook();
+  requestAnimationFrame(fit);
+}
+async function goShelf() {
+  stopReading(); await flushSave(); cur = null; showShelf();
+}
+function fit() {
+  if (!cur) return;
+  const st = $('#stage').getBoundingClientRect();
+  const navW = window.innerWidth < 820 ? 52 : 72;
+  const availW = st.width - 16 - navW * 2 - 20 - 24;
+  const availH = st.height - 16 - 24;
+  const w = Math.max(280, Math.min(availW, availH * 1.6));
+  const book = $('#book');
+  book.style.width = w + 'px'; book.style.height = (w / 1.6) + 'px';
+  book.style.fontSize = (w * 0.03 * fontScale) + 'px';
+}
+new ResizeObserver(fit).observe($('#stage'));
+window.addEventListener('resize', fit);
+
+function imagePane(page, editable) {
+  const frame = h('div', { class: 'imgframe' });
+  if (page.img) frame.append(h('img', { src: page.img, alt: '이야기 그림', draggable: 'false' }));
+  else if (editable) frame.append(h('button', { class: 'noimg', onclick: () => pickImage(page) }, '＋ 그림 올리기'));
+  else frame.append(h('div', { class: 'noimg' }, '그림이 없어요'));
+  const p = h('div', { class: 'pane' + (editable ? ' tools' : '') }, frame);
+  if (editable) p.append(h('div', { class: 'imgtools' },
+    h('button', { class: 'btn small', onclick: () => pickImage(page) }, page.img ? '그림 바꾸기' : '그림 올리기'),
+    page.img && h('button', { class: 'btn small danger', onclick: () => removeImage(page) }, '그림 지우기')));
+  return p;
+}
+function renderWords(box, text) {
+  const words = []; const re = /\S+/g; let m, last = 0;
+  while ((m = re.exec(text))) {
+    if (m.index > last) box.append(text.slice(last, m.index));
+    const el = h('span', { class: 'w', text: m[0] }); box.append(el);
+    words.push({ start: m.index, end: m.index + m[0].length, el });
+    last = m.index + m[0].length;
+  }
+  if (last < text.length) box.append(text.slice(last));
+  box._words = words;
+}
+function textPane(page, editable) {
+  const p = h('div', { class: 'pane text-pane' });
+  if (editable) {
+    const ta = h('textarea', { class: 'ta', placeholder: '여기에 글을 써 주세요', 'aria-label': '이 쪽의 글' });
+    ta.value = page.text;
+    ta.addEventListener('input', () => { page.text = ta.value; touch(); });
+    p.append(ta);
+  } else {
+    const box = h('div', { class: 'txt' });
+    if (page.text.trim()) renderWords(box, page.text);
+    else { box._words = []; box.append(h('span', { class: 'hint' }, '(글이 없어요)')); }
+    p.append(box);
+  }
+  return p;
+}
+let liveBox = null;
+function fillLeft(page) { $('#paneL').replaceChildren(imagePane(page, cur.edit)); }
+function fillRight(page) {
+  const pane = textPane(page, cur.edit);
+  $('#paneR').replaceChildren(pane);
+  liveBox = cur.edit ? null : pane.querySelector('.txt');
+}
+function updateInfo() {
+  const n = cur.book.pages.length;
+  $('#pageInfo').textContent = `${cur.idx + 1} / ${n} 쪽`;
+  $('#prevBtn').disabled = cur.idx <= 0;
+  $('#nextBtn').disabled = cur.idx >= n - 1;
+  $('#delBtn').disabled = n <= 1;
+  $('#moveLBtn').disabled = cur.idx <= 0;
+  $('#moveRBtn').disabled = cur.idx >= n - 1;
+}
+function renderPanes() {
+  const p = cur.book.pages[cur.idx];
+  fillLeft(p); fillRight(p); updateInfo();
+}
+function renderBook() {
+  const b = cur.book;
+  $('#bTitle').textContent = titleOf(b); $('#bTitle').hidden = cur.edit;
+  $('#titleIn').hidden = !cur.edit; $('#titleIn').value = b.title;
+  $('#editBtn').setAttribute('aria-pressed', String(cur.edit));
+  $('#editBtn').textContent = cur.edit ? '✏️ 편집 중 (끝내기)' : '✏️ 편집 모드';
+  $('#editRow').hidden = !cur.edit;
+  $('#readBtn').disabled = cur.edit;
+  $('#readBtn').title = cur.edit ? '편집 모드를 끝내면 읽어줄 수 있어요' : '';
+  document.title = titleOf(b) + ' - 이야기책';
+  renderPanes(); fit();
+}
+
+/* ---------- 쪽 넘김 ---------- */
+function flipTo(newIdx) {
+  return new Promise(res => {
+    const pages = cur.book.pages, old = cur.idx;
+    if (flipping || newIdx === old || newIdx < 0 || newIdx >= pages.length) return res(false);
+    flipping = true;
+    const next = newIdx > old, oldP = pages[old], newP = pages[newIdx];
+    cur.idx = newIdx; updateInfo(); playFlip();
+    const leaf = h('div', { class: 'leaf ' + (next ? 'next' : 'prev') },
+      h('div', { class: 'face front' }, next ? textPane(oldP, false) : imagePane(oldP, false)),
+      h('div', { class: 'face back' }, next ? imagePane(newP, false) : textPane(newP, false)));
+    if (next) fillRight(newP); else fillLeft(newP);
+    $('#book').append(leaf);
+    void leaf.offsetWidth;
+    leaf.classList.add('turn');
+    let done = false;
+    const fin = () => {
+      if (done) return; done = true;
+      if (next) fillLeft(newP); else fillRight(newP);
+      leaf.remove(); flipping = false; res(true);
+    };
+    leaf.addEventListener('transitionend', e => { if (e.target === leaf && e.propertyName === 'transform') fin(); });
+    setTimeout(fin, 1100);
+  });
+}
+function go(delta) {
+  if (!cur) return;
+  stopReading();
+  flipTo(cur.idx + delta);
+}
+
+/* ---------- 편집 ---------- */
+function setEdit(v) {
+  if (!cur || flipping) return;
+  stopReading(); cur.edit = v; renderBook();
+}
+async function pickImage(page) { pendingImagePage = page; $('#imgFile').value = ''; $('#imgFile').click(); }
+let pendingImagePage = null;
+async function resizeImage(file) {
+  const url = URL.createObjectURL(file);
+  try {
+    const img = new Image(); img.src = url; await img.decode();
+    if (!img.naturalWidth || !img.naturalHeight) throw new Error('크기를 알 수 없는 이미지');
+    const s = Math.min(1, 1400 / Math.max(img.naturalWidth, img.naturalHeight));
+    const w = Math.max(1, Math.round(img.naturalWidth * s)), hh = Math.max(1, Math.round(img.naturalHeight * s));
+    const c = document.createElement('canvas'); c.width = w; c.height = hh;
+    const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, w, hh); g.drawImage(img, 0, 0, w, hh);
+    return c.toDataURL('image/jpeg', 0.85);
+  } finally { URL.revokeObjectURL(url); }
+}
+$('#imgFile').addEventListener('change', async (e) => {
+  const f = e.target.files[0], page = pendingImagePage; if (!f || !page || !cur) return;
+  try {
+    const data = await resizeImage(f);
+    page.img = data; touch();
+    if (cur.book.pages[cur.idx] === page && !flipping) fillLeft(page);
+  } catch (err) { console.error(err); toast('이 그림은 불러올 수 없어요.\n다른 사진(JPG, PNG)을 골라 주세요.'); }
+});
+function removeImage(page) {
+  page.img = null; touch();
+  if (cur.book.pages[cur.idx] === page) fillLeft(page);
+}
+async function addPage() {
+  if (flipping) return;
+  const p = blankPage(); cur.book.pages.splice(cur.idx + 1, 0, p); touch();
+  await flipTo(cur.idx + 1);
+  const ta = document.querySelector('#paneR textarea'); if (ta) ta.focus();
+}
+async function deletePage() {
+  if (flipping || cur.book.pages.length <= 1) return;
+  if (!await confirmDialog(`${cur.idx + 1}쪽을 지울까요?\n지운 쪽은 되돌릴 수 없어요.`, '지우기')) return;
+  cur.book.pages.splice(cur.idx, 1); cur.idx = Math.min(cur.idx, cur.book.pages.length - 1);
+  touch(); renderPanes();
+}
+function movePage(d) {
+  if (flipping) return;
+  const pg = cur.book.pages, j = cur.idx + d; if (j < 0 || j >= pg.length) return;
+  [pg[cur.idx], pg[j]] = [pg[j], pg[cur.idx]]; cur.idx = j; touch(); renderPanes();
+}
+
+/* ---------- 읽어주기 ---------- */
+const synth = window.speechSynthesis;
+let koVoice = null, warnedVoice = false;
+function pickVoice() {
+  if (!synth) return null;
+  const ko = synth.getVoices().filter(v => /^ko([-_]|$)/i.test(v.lang));
+  return ko.find(v => /^ko[-_]kr$/i.test(v.lang) && v.localService) || ko.find(v => /^ko[-_]kr$/i.test(v.lang)) || ko[0] || null;
+}
+if (synth) { koVoice = pickVoice(); synth.addEventListener?.('voiceschanged', () => { koVoice = pickVoice(); }); }
+
+const R = { on: false, token: 0, utter: null, got: false, t0: 0, fb: null, guard: null, words: [], active: -1 };
+function clearActive() {
+  if (R.active >= 0 && R.words[R.active]) R.words[R.active].el.classList.remove('on');
+  R.active = -1;
+}
+function setActive(i) {
+  if (i === R.active || !R.words[i]) return;
+  clearActive(); R.active = i;
+  const el = R.words[i].el; el.classList.add('on');
+  const pane = el.closest('.text-pane');
+  if (pane && pane.scrollHeight > pane.clientHeight + 2) {
+    const pr = pane.getBoundingClientRect(), er = el.getBoundingClientRect();
+    if (er.top < pr.top + 10 || er.bottom > pr.bottom - 10) pane.scrollTop += er.top - pr.top - pr.height / 3;
+  }
+}
+function setActiveAtChar(ci) {
+  let i = -1; const w = R.words;
+  for (let k = 0; k < w.length; k++) { if (w[k].start <= ci) i = k; else break; }
+  if (i < 0) i = 0;
+  setActive(i);
+}
+function updateReadBtn() {
+  const b = $('#readBtn');
+  b.classList.toggle('on', R.on); b.setAttribute('aria-pressed', String(R.on));
+  b.textContent = R.on ? '■ 멈추기' : '🔊 읽어주기';
+}
+function cancelSpeech() {
+  R.token++; clearTimeout(R.fb); clearTimeout(R.guard); R.fb = R.guard = null; R.t0 = 0; R.got = false;
+  clearActive(); R.words = [];
+  if (synth) try { synth.cancel(); } catch {}
+}
+function stopReading() {
+  cancelSpeech(); R.on = false; updateReadBtn();
+}
+// 기기 음성이 boundary 이벤트를 주지 않을 때: 글자 수, 속도, 문장부호 쉼으로 어절 시간표를 계산
+const MS_PER_CHAR = 185;
+function buildSchedule(text, words, rt) {
+  const starts = []; let t = 0;
+  words.forEach((w, i) => {
+    starts.push(t);
+    const raw = text.slice(w.start, w.end);
+    const core = raw.replace(/[.,!?…~:;·"'“”‘’()\[\]{}\-—。、，！？]/g, '');
+    t += (Math.max(core.length, 1) * MS_PER_CHAR + 70) / rt;
+    const tail = raw.replace(/["'”’)\]}]+$/, '').slice(-1);
+    let pause = 0;
+    if (/[.!?…。！？]/.test(tail)) pause = 550;
+    else if (/[,;:，、]/.test(tail)) pause = 280;
+    const nxt = words[i + 1] ? words[i + 1].start : text.length;
+    if (/\n/.test(text.slice(w.end, nxt))) pause = Math.max(pause, 420);
+    t += pause / rt;
+  });
+  return starts;
+}
+function runFallback(my, text, rt) {
+  if (R.token !== my || R.got || !R.words.length) return;
+  const starts = buildSchedule(text, R.words, rt);
+  const step = () => {
+    if (R.token !== my || R.got) return;
+    const el = performance.now() - R.t0;
+    let i = 0; while (i + 1 < starts.length && starts[i + 1] <= el) i++;
+    setActive(i);
+    if (i + 1 < starts.length) R.fb = setTimeout(step, Math.max(30, starts[i + 1] - el));
+  };
+  step();
+}
+function startReading() {
+  if (!cur || cur.edit) return;
+  if (!synth || typeof SpeechSynthesisUtterance === 'undefined') { toast('이 기기에서는 읽어주기를 쓸 수 없어요.'); return; }
+  const page = cur.book.pages[cur.idx];
+  if (!page.text.trim()) { stopReading(); toast('이 쪽에는 읽을 글이 없어요.'); return; }
+  cancelSpeech(); R.on = true; updateReadBtn(); audio();
+  const my = R.token, rt = rate, text = page.text;
+  R.words = liveBox ? liveBox._words : [];
+  if (!koVoice) koVoice = pickVoice();
+  if (!koVoice && !warnedVoice) {
+    warnedVoice = true;
+    toast('이 기기에서 한국어 음성을 찾지 못했어요.\n기기 설정에서 한국어 음성을 설치해 주세요. (일단 기본 음성으로 읽어볼게요)', 6500);
+  }
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = koVoice ? koVoice.lang : 'ko-KR'; if (koVoice) u.voice = koVoice;
+  u.rate = rt; u.pitch = 1; u.volume = 1;
+  const arm = () => {
+    if (R.token !== my || R.t0) return;
+    R.t0 = performance.now();
+    R.fb = setTimeout(() => runFallback(my, text, rt), 600);
+  };
+  u.onstart = arm;
+  u.onboundary = (e) => {
+    if (R.token !== my || (e.name && e.name !== 'word')) return;
+    R.got = true; clearTimeout(R.fb); clearTimeout(R.guard);
+    setActiveAtChar(e.charIndex || 0);
+  };
+  u.onend = () => { if (R.token === my) onReadEnd(my); };
+  u.onerror = (e) => {
+    if (R.token !== my || e.error === 'interrupted' || e.error === 'canceled') return;
+    stopReading(); toast('읽어주기를 시작하지 못했어요. (' + (e.error || '오류') + ')');
+  };
+  R.utter = u; // 가비지 컬렉션 방지
+  setTimeout(() => { if (R.token === my) { try { synth.speak(u); } catch { stopReading(); } } }, 60);
+  // onstart 이벤트가 오지 않는 음성 대비
+  R.guard = setTimeout(arm, 1500);
+}
+async function onReadEnd(my) {
+  clearTimeout(R.fb); clearTimeout(R.guard); clearActive();
+  const last = cur.book.pages.length - 1;
+  if (!autoNext || cur.idx >= last) { R.on = false; updateReadBtn(); return; }
+  while (cur.idx < last) {
+    if (!await flipTo(cur.idx + 1)) break;
+    if (R.token !== my || !R.on) return;
+    if (cur.book.pages[cur.idx].text.trim()) { startReading(); return; }
+    await sleep(1500);
+    if (R.token !== my || !R.on) return;
+  }
+  R.on = false; updateReadBtn();
+}
+function toggleRead() { if (R.on) stopReading(); else startReading(); }
+
+/* ---------- 이벤트 연결 ---------- */
+$('#newBtn').onclick = $('#newBtn2').onclick = newBook;
+$('#importBtn').onclick = () => { $('#importFile').value = ''; $('#importFile').click(); };
+$('#importFile').addEventListener('change', (e) => { if (e.target.files.length) importFiles([...e.target.files]); });
+$('#exportAllBtn').onclick = () => exportBooks(books);
+$('#backBtn').onclick = goShelf;
+$('#saveFileBtn').onclick = () => cur && exportBooks([cur.book]);
+$('#editBtn').onclick = () => setEdit(!cur.edit);
+$('#titleIn').addEventListener('input', (e) => { cur.book.title = e.target.value; $('#bTitle').textContent = titleOf(cur.book); touch(); });
+$('#prevBtn').onclick = () => go(-1);
+$('#nextBtn').onclick = () => go(1);
+$('#addBtn').onclick = addPage;
+$('#delBtn').onclick = deletePage;
+$('#moveLBtn').onclick = () => movePage(-1);
+$('#moveRBtn').onclick = () => movePage(1);
+$('#readBtn').onclick = toggleRead;
+$('#fsMinus').onclick = () => { fontScale = clamp(Math.round((fontScale - 0.1) * 10) / 10, 0.6, 2.4); store.set('ssb.fs', fontScale); fit(); };
+$('#fsPlus').onclick = () => { fontScale = clamp(Math.round((fontScale + 0.1) * 10) / 10, 0.6, 2.4); store.set('ssb.fs', fontScale); fit(); };
+
+const rateEl = $('#rate'); let rateTimer = null;
+rateEl.value = rate; $('#rateOut').textContent = rate.toFixed(1) + '배';
+rateEl.addEventListener('input', () => {
+  rate = clamp(Math.round(parseFloat(rateEl.value) * 10) / 10, 0.5, 1.5);
+  $('#rateOut').textContent = rate.toFixed(1) + '배'; store.set('ssb.rate', rate);
+  if (R.on) { clearTimeout(rateTimer); rateTimer = setTimeout(() => { if (R.on) startReading(); }, 250); }
+});
+$('#soundChk').checked = soundOn;
+$('#soundChk').addEventListener('change', (e) => { soundOn = e.target.checked; store.set('ssb.sound', soundOn ? '1' : '0'); if (soundOn) audio(); });
+$('#autoChk').checked = autoNext;
+$('#autoChk').addEventListener('change', (e) => { autoNext = e.target.checked; store.set('ssb.auto', autoNext ? '1' : '0'); });
+
+// 키보드
+const isTyping = (t) => t.tagName === 'TEXTAREA' || (t.tagName === 'INPUT' && !['checkbox', 'range', 'button', 'file'].includes(t.type));
+document.addEventListener('keydown', (e) => {
+  if (!$('#modal').hidden) { if (e.key === 'Escape') closeModal(false); return; }
+  if ($('#bookView').hidden || !cur) return;
+  const t = e.target;
+  if (isTyping(t) || e.ctrlKey || e.metaKey || e.altKey) return;
+  if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+    if (t.type === 'range') return;
+    e.preventDefault(); go(e.key === 'ArrowRight' ? 1 : -1);
+  } else if (e.key === ' ' || e.code === 'Space') {
+    e.preventDefault();
+    if (!cur.edit && !e.repeat) toggleRead();
+  }
+});
+document.addEventListener('keyup', (e) => {
+  if ((e.key === ' ' || e.code === 'Space') && !$('#bookView').hidden && !isTyping(e.target)) e.preventDefault();
+});
+
+// 스와이프
+let sx = 0, sy = 0, sw = false;
+$('#stage').addEventListener('touchstart', (e) => {
+  sw = e.touches.length === 1 && !e.target.closest('textarea,button,input');
+  if (sw) { sx = e.touches[0].clientX; sy = e.touches[0].clientY; }
+}, { passive: true });
+$('#stage').addEventListener('touchend', (e) => {
+  if (!sw) return; sw = false;
+  const t = e.changedTouches[0], dx = t.clientX - sx, dy = t.clientY - sy;
+  if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) go(dx < 0 ? 1 : -1);
+}, { passive: true });
+
+// 종료 시 저장
+window.addEventListener('pagehide', () => { try { synth && synth.cancel(); } catch {} flushSave(); });
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flushSave(); });
+window.addEventListener('beforeunload', (e) => {
+  flushSave();
+  if (!dbOK && books.length) { e.preventDefault(); e.returnValue = ''; }
+});
+
+/* ---------- 시작 ---------- */
+(async function init() {
+  try { synth && synth.cancel(); } catch {}
+  try { db = await dbOpen(); books = (await dbAll()).filter(b => b && Array.isArray(b.pages)); dbOK = true; }
+  catch (e) { console.warn('IndexedDB 사용 불가', e); dbOK = false; showNoDbNotice(); }
+  try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {}); } catch {}
+  books.forEach(b => { b.title = b.title || ''; b.updatedAt = b.updatedAt || Date.now(); });
+  showShelf();
+})();
+})();
+</script>
+</body>
+</html>
