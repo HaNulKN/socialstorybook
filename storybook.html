@@ -126,12 +126,24 @@ button.noimg{width:100%;height:100%;border:0;background:transparent;cursor:point
   background:#3d2a18;color:#fff;padding:16px 26px;border-radius:18px;font-size:21px;font-weight:700;max-width:90vw;
   text-align:center;transition:.25s;white-space:pre-line}
 #toast.show{opacity:1;transform:translate(-50%,0)}
-#modal{position:fixed;inset:0;background:rgba(60,35,10,.5);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px}
-#modal .box{background:#fffaf0;border:4px solid var(--wood);border-radius:26px;padding:30px;max-width:520px;width:100%;text-align:center}
-#modal p{margin:0 0 26px;font-size:26px;line-height:1.6;font-weight:700;white-space:pre-line}
-#modal .btns{display:flex;gap:16px;justify-content:center}
-#modal .btn{min-width:150px;min-height:64px;font-size:24px}
+#modal,#hotEd{position:fixed;inset:0;background:rgba(60,35,10,.5);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px}
+#modal .box,#hotEd .box{background:#fffaf0;border:4px solid var(--wood);border-radius:26px;padding:30px;max-width:520px;width:100%;text-align:center}
+#modal p,#hotEd p{margin:0 0 26px;font-size:26px;line-height:1.6;font-weight:700;white-space:pre-line}
+#modal .btns,#hotEd .btns{display:flex;gap:16px;justify-content:center}
+#modal .btn,#hotEd .btn{min-width:150px;min-height:64px;font-size:24px}
 
+#hotEd textarea{width:100%;min-height:120px;resize:none;border:3px solid var(--wood);border-radius:14px;padding:12px;
+  font-size:26px;font-weight:600;margin-bottom:22px;font-family:inherit}
+#hotEd .btns{flex-wrap:wrap}
+.hots{position:absolute;pointer-events:none}
+.hotbtn{position:absolute;transform:translate(-50%,-50%);width:max(54px,2.3em);height:max(54px,2.3em);border-radius:50%;
+  border:4px solid #fff;background:var(--accent);color:#fff;font-size:.9em;line-height:1;cursor:pointer;pointer-events:auto;
+  box-shadow:0 3px 8px rgba(60,35,10,.45);touch-action:manipulation;padding:0}
+.hotbtn:active{filter:brightness(.9)}
+.hotbtn.editing{outline:3px dashed #2b7de9;outline-offset:3px;cursor:grab;touch-action:none}
+.hotbtn.playing{background:#d9534f;animation:pulse .7s ease-in-out infinite}
+.leaf .hotbtn{pointer-events:none}
+@keyframes pulse{50%{transform:translate(-50%,-50%) scale(1.15)}}
 @media (max-width:820px){
   .nav{width:52px;height:96px;font-size:30px}
   .btn{padding:0 16px;font-size:18px}
@@ -190,11 +202,13 @@ button.noimg{width:100%;height:100%;border:0;background:transparent;cursor:point
   <footer class="bar bottom">
     <div class="row" id="editRow" hidden>
       <button id="addBtn" class="btn">＋ 쪽 추가</button>
+      <button id="hotAddBtn" class="btn">🔊 소리 버튼 추가</button>
       <button id="delBtn" class="btn danger">🗑 쪽 삭제</button>
       <button id="moveLBtn" class="btn">◀ 앞으로 옮기기</button>
       <button id="moveRBtn" class="btn">뒤로 옮기기 ▶</button>
     </div>
     <div class="row" id="readRow">
+      <button id="firstBtn" class="btn">⏮ 첫 쪽</button>
       <span id="pageInfo"></span>
       <button id="readBtn" class="btn primary" aria-pressed="false">🔊 읽어주기</button>
       <label class="speed">읽기 속도
@@ -212,6 +226,9 @@ button.noimg{width:100%;height:100%;border:0;background:transparent;cursor:point
 <input type="file" id="imgFile" accept="image/*" hidden>
 <input type="file" id="importFile" accept=".json,.storybook.json,application/json" multiple hidden>
 <div id="toast" role="status" aria-live="polite"></div>
+<div id="hotEd" hidden><div class="box"><p>이 소리 버튼을 누르면 나올 말</p>
+  <textarea id="hotText" maxlength="200" placeholder="예) 안녕하세요?" aria-label="소리 버튼 말"></textarea>
+  <div class="btns"><button id="hotTry" class="btn">▶ 들어보기</button><button id="hotDel" class="btn danger">삭제</button><button id="hotOk" class="btn primary">확인</button></div></div></div>
 <div id="modal" hidden><div class="box"><p id="modalMsg"></p><div class="btns">
   <button id="modalNo" class="btn">취소</button><button id="modalOk" class="btn primary">확인</button></div></div></div>
 
@@ -240,7 +257,7 @@ const store = {
   get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : v; } catch { return d; } },
   set(k, v) { try { localStorage.setItem(k, String(v)); } catch {} }
 };
-const blankPage = () => ({ id: uid(), img: null, text: '' });
+const blankPage = () => ({ id: uid(), img: null, text: '', hot: [] });
 const titleOf = (b) => b.title.trim() || '제목 없는 이야기책';
 
 let toastTimer;
@@ -416,7 +433,9 @@ function normBook(o) {
   const pages = o.pages.map(p => ({
     id: uid(),
     img: p && typeof p.img === 'string' && p.img.startsWith('data:image/') ? p.img : null,
-    text: p && typeof p.text === 'string' ? p.text : ''
+    text: p && typeof p.text === 'string' ? p.text : '',
+    hot: p && Array.isArray(p.hot) ? p.hot.filter(x => x && typeof x.text === 'string' && x.text.trim()).map(x => ({
+      id: uid(), x: clamp(Number(x.x) || 0.5, 0.06, 0.94), y: clamp(Number(x.y) || 0.5, 0.06, 0.94), text: x.text.slice(0, 200) })) : []
   }));
   if (!pages.length) pages.push(blankPage());
   const now = Date.now();
@@ -467,10 +486,41 @@ function fit() {
 new ResizeObserver(fit).observe($('#stage'));
 window.addEventListener('resize', fit);
 
+const hotRO = new ResizeObserver(es => es.forEach(en => en.target._lay && en.target._lay()));
+function hotButton(page, hs, editable, layer) {
+  const b = h('button', { class: 'hotbtn' + (editable ? ' editing' : ''), type: 'button', title: hs.text, 'aria-label': '소리 버튼: ' + hs.text }, '🔊');
+  b.style.left = hs.x * 100 + '%'; b.style.top = hs.y * 100 + '%';
+  if (!editable) { b.addEventListener('click', () => playHot(hs, b)); return b; }
+  let drag = false, moved = false, sx = 0, sy = 0;
+  b.addEventListener('pointerdown', (e) => { drag = true; moved = false; sx = e.clientX; sy = e.clientY; b.setPointerCapture(e.pointerId); e.preventDefault(); });
+  b.addEventListener('pointermove', (e) => {
+    if (!drag) return;
+    if (Math.abs(e.clientX - sx) + Math.abs(e.clientY - sy) > 6) moved = true;
+    if (!moved) return;
+    const r = layer.getBoundingClientRect();
+    hs.x = clamp((e.clientX - r.left) / r.width, 0.06, 0.94); hs.y = clamp((e.clientY - r.top) / r.height, 0.06, 0.94);
+    b.style.left = hs.x * 100 + '%'; b.style.top = hs.y * 100 + '%';
+  });
+  b.addEventListener('pointerup', () => { if (!drag) return; drag = false; if (moved) touch(); else openHotEditor(page, hs); });
+  b.addEventListener('pointercancel', () => { drag = false; });
+  b.addEventListener('click', (e) => { if (e.detail === 0) openHotEditor(page, hs); }); // 키보드
+  return b;
+}
 function imagePane(page, editable) {
   const frame = h('div', { class: 'imgframe' });
-  if (page.img) frame.append(h('img', { src: page.img, alt: '이야기 그림', draggable: 'false' }));
-  else if (editable) frame.append(h('button', { class: 'noimg', onclick: () => pickImage(page) }, '＋ 그림 올리기'));
+  if (page.img) {
+    const img = h('img', { src: page.img, alt: '이야기 그림', draggable: 'false' });
+    const layer = h('div', { class: 'hots' });
+    for (const hs of (page.hot || [])) layer.append(hotButton(page, hs, editable, layer));
+    frame._lay = () => {   // 소리 버튼 층을 실제 그림 영역에 맞춘다
+      if (!img.naturalWidth) return;
+      const fw = frame.clientWidth, fh = frame.clientHeight, r = img.naturalWidth / img.naturalHeight;
+      const w = fw / fh > r ? fh * r : fw, hh = fw / fh > r ? fh : fw / r;
+      Object.assign(layer.style, { left: (fw - w) / 2 + 'px', top: (fh - hh) / 2 + 'px', width: w + 'px', height: hh + 'px' });
+    };
+    img.addEventListener('load', frame._lay); hotRO.observe(frame);
+    frame.append(img, layer);
+  } else if (editable) frame.append(h('button', { class: 'noimg', onclick: () => pickImage(page) }, '＋ 그림 올리기'));
   else frame.append(h('div', { class: 'noimg' }, '그림이 없어요'));
   const p = h('div', { class: 'pane' + (editable ? ' tools' : '') }, frame);
   if (editable) p.append(h('div', { class: 'imgtools' },
@@ -515,6 +565,7 @@ function updateInfo() {
   const n = cur.book.pages.length;
   $('#pageInfo').textContent = `${cur.idx + 1} / ${n} 쪽`;
   $('#prevBtn').disabled = cur.idx <= 0;
+  $('#firstBtn').disabled = cur.idx <= 0;
   $('#nextBtn').disabled = cur.idx >= n - 1;
   $('#delBtn').disabled = n <= 1;
   $('#moveLBtn').disabled = cur.idx <= 0;
@@ -596,7 +647,7 @@ $('#imgFile').addEventListener('change', async (e) => {
   } catch (err) { console.error(err); toast('이 그림은 불러올 수 없어요.\n다른 사진(JPG, PNG)을 골라 주세요.'); }
 });
 function removeImage(page) {
-  page.img = null; touch();
+  page.img = null; page.hot = []; touch();
   if (cur.book.pages[cur.idx] === page) fillLeft(page);
 }
 async function addPage() {
@@ -656,6 +707,7 @@ function updateReadBtn() {
 function cancelSpeech() {
   R.token++; clearTimeout(R.fb); clearTimeout(R.guard); R.fb = R.guard = null; R.t0 = 0; R.got = false;
   clearActive(); R.words = [];
+  document.querySelectorAll('.hotbtn.playing').forEach(b => b.classList.remove('playing'));
   if (synth) try { synth.cancel(); } catch {}
 }
 function stopReading() {
@@ -692,14 +744,7 @@ function runFallback(my, text, rt) {
   };
   step();
 }
-function startReading() {
-  if (!cur || cur.edit) return;
-  if (!synth || typeof SpeechSynthesisUtterance === 'undefined') { toast('이 기기에서는 읽어주기를 쓸 수 없어요.'); return; }
-  const page = cur.book.pages[cur.idx];
-  if (!page.text.trim()) { stopReading(); toast('이 쪽에는 읽을 글이 없어요.'); return; }
-  cancelSpeech(); R.on = true; updateReadBtn(); audio();
-  const my = R.token, rt = rate, text = page.text;
-  R.words = liveBox ? liveBox._words : [];
+function makeUtter(text, rt) {
   if (!koVoice) koVoice = pickVoice();
   if (!koVoice && !warnedVoice) {
     warnedVoice = true;
@@ -708,6 +753,29 @@ function startReading() {
   const u = new SpeechSynthesisUtterance(text);
   u.lang = koVoice ? koVoice.lang : 'ko-KR'; if (koVoice) u.voice = koVoice;
   u.rate = rt; u.pitch = 1; u.volume = 1;
+  return u;
+}
+// 그림 위 소리 버튼: 정해 둔 말을 기기 음성으로 들려준다
+function playHot(hs, btn) {
+  if (!synth || typeof SpeechSynthesisUtterance === 'undefined') { toast('이 기기에서는 소리를 낼 수 없어요.'); return; }
+  const was = btn && btn.classList.contains('playing');
+  stopReading(); audio();
+  const text = (hs.text || '').trim(); if (was || !text) return;
+  const my = R.token, u = makeUtter(text, rate);
+  if (btn) btn.classList.add('playing');
+  u.onend = u.onerror = () => { if (R.token === my && btn) btn.classList.remove('playing'); };
+  R.utter = u;
+  setTimeout(() => { if (R.token === my) { try { synth.speak(u); } catch {} } }, 60);
+}
+function startReading() {
+  if (!cur || cur.edit) return;
+  if (!synth || typeof SpeechSynthesisUtterance === 'undefined') { toast('이 기기에서는 읽어주기를 쓸 수 없어요.'); return; }
+  const page = cur.book.pages[cur.idx];
+  if (!page.text.trim()) { stopReading(); toast('이 쪽에는 읽을 글이 없어요.'); return; }
+  cancelSpeech(); R.on = true; updateReadBtn(); audio();
+  const my = R.token, rt = rate, text = page.text;
+  R.words = liveBox ? liveBox._words : [];
+  const u = makeUtter(text, rt);
   const arm = () => {
     if (R.token !== my || R.t0) return;
     R.t0 = performance.now();
@@ -742,6 +810,26 @@ async function onReadEnd(my) {
   }
   R.on = false; updateReadBtn();
 }
+let hotCtx = null;
+function openHotEditor(page, hs) {
+  hotCtx = { page, hs }; $('#hotText').value = hs.text; $('#hotEd').hidden = false; $('#hotText').focus();
+}
+function closeHotEditor(remove) {
+  if (!hotCtx) return;
+  const { page, hs } = hotCtx; hotCtx = null; $('#hotEd').hidden = true; stopReading();
+  hs.text = $('#hotText').value.trim();
+  if (remove || !hs.text) page.hot = page.hot.filter(x => x !== hs);
+  touch();
+  if (cur && cur.book.pages[cur.idx] === page && !flipping) fillLeft(page);
+}
+function addHot() {
+  const p = cur.book.pages[cur.idx];
+  if (!p.img) { toast('먼저 그림을 올려 주세요.'); return; }
+  const hs = { id: uid(), x: 0.5, y: 0.5, text: '' };
+  (p.hot = p.hot || []).push(hs); fillLeft(p); openHotEditor(p, hs);
+  toast('소리 버튼은 끌어서 옮기고, 눌러서 말을 고칠 수 있어요.', 5000);
+}
+function goFirst() { if (cur && cur.idx > 0) { stopReading(); flipTo(0); } }
 function toggleRead() { if (R.on) stopReading(); else startReading(); }
 
 /* ---------- 이벤트 연결 ---------- */
@@ -756,6 +844,15 @@ $('#titleIn').addEventListener('input', (e) => { cur.book.title = e.target.value
 $('#prevBtn').onclick = () => go(-1);
 $('#nextBtn').onclick = () => go(1);
 $('#addBtn').onclick = addPage;
+$('#hotAddBtn').onclick = addHot;
+$('#firstBtn').onclick = goFirst;
+$('#hotOk').onclick = () => closeHotEditor(false);
+$('#hotDel').onclick = () => closeHotEditor(true);
+$('#hotTry').onclick = () => {
+  const t = $('#hotText').value.trim(); if (!t || !synth) return;
+  stopReading(); audio(); const u = makeUtter(t, rate); R.utter = u; const my = R.token;
+  setTimeout(() => { if (R.token === my) { try { synth.speak(u); } catch {} } }, 60);
+};
 $('#delBtn').onclick = deletePage;
 $('#moveLBtn').onclick = () => movePage(-1);
 $('#moveRBtn').onclick = () => movePage(1);
@@ -779,10 +876,12 @@ $('#autoChk').addEventListener('change', (e) => { autoNext = e.target.checked; s
 const isTyping = (t) => t.tagName === 'TEXTAREA' || (t.tagName === 'INPUT' && !['checkbox', 'range', 'button', 'file'].includes(t.type));
 document.addEventListener('keydown', (e) => {
   if (!$('#modal').hidden) { if (e.key === 'Escape') closeModal(false); return; }
+  if (!$('#hotEd').hidden) { if (e.key === 'Escape') closeHotEditor(false); return; }
   if ($('#bookView').hidden || !cur) return;
   const t = e.target;
   if (isTyping(t) || e.ctrlKey || e.metaKey || e.altKey) return;
-  if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+  if (e.key === 'Home') { e.preventDefault(); goFirst(); }
+  else if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
     if (t.type === 'range') return;
     e.preventDefault(); go(e.key === 'ArrowRight' ? 1 : -1);
   } else if (e.key === ' ' || e.code === 'Space') {
