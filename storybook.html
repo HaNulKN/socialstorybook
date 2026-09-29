@@ -198,6 +198,17 @@ button.noimg{width:100%;height:100%;border:0;background:transparent;cursor:point
 .phalf.full{width:297mm}
 .ptick{position:absolute;left:148.5mm;width:0;border-left:.3mm solid #aaa;height:5mm}
 .ptick.t{top:0}.ptick.b{bottom:0}
+.plabel{position:absolute;top:4mm;left:6mm;display:flex;align-items:center;gap:1.5mm;font-size:11pt;font-weight:700;color:#555}
+.plabel b{display:inline-flex;align-items:center;justify-content:center;width:8mm;height:8mm;border-radius:50%;border:.5mm solid #555;font-size:13pt}
+.pstaple{position:absolute;left:148.5mm;width:2.4mm;height:2.4mm;margin:-1.2mm 0 0 -1.2mm;border-radius:50%;background:#aaa}
+.pguide{padding:12mm 14mm;flex-direction:column;gap:7mm}
+.pguide h1{margin:0;font-size:26pt}
+.gsteps{display:flex;gap:6mm;flex:1}
+.gstep{flex:1;border:.5mm solid #999;border-radius:4mm;padding:5mm;display:flex;flex-direction:column;align-items:center;gap:4mm;text-align:center}
+.gstep .gn{display:inline-flex;align-items:center;justify-content:center;width:12mm;height:12mm;border-radius:50%;background:#333;color:#fff;font-size:18pt;font-weight:800}
+.gstep p{margin:0;font-size:15pt;font-weight:700;line-height:1.5;word-break:keep-all}
+.gstep svg{width:100%;max-height:52mm}
+.gnote{font-size:11pt;color:#666}
 .pnum{position:absolute;bottom:6mm;left:0;right:0;text-align:center;font-size:10pt;color:#999}
 .pimg{position:relative}
 .pimg img{width:100%;height:100%;display:block}
@@ -226,7 +237,7 @@ button.noimg{width:100%;height:100%;border:0;background:transparent;cursor:point
 <!-- 책장 -->
 <main id="shelfView" class="view" hidden>
   <header class="bar shelf-head">
-    <h1>📚 내 이야기책 <small style="font-size:16px;font-weight:600;color:var(--ink2)">버전 12 · 인쇄 그림 약간 축소</small></h1>
+    <h1>📚 내 이야기책 <small style="font-size:16px;font-weight:600;color:var(--ink2)">버전 13 · 만드는 방법 안내</small></h1>
     <button id="newBtn" class="btn primary">＋ 새 이야기책</button>
     <button id="importBtn" class="btn">파일 불러오기</button>
     <button id="exportAllBtn" class="btn">전체 파일로 저장</button>
@@ -322,7 +333,7 @@ button.noimg{width:100%;height:100%;border:0;background:transparent;cursor:point
   <div class="pgrp"><label class="chk"><input type="checkbox" id="pName"> 표지에 “이름” 쓰는 칸</label>
     <label class="chk" id="pSoundRow"><input type="checkbox" id="pSound"> 소리 버튼 자리에 🔊 표시</label></div>
   <p class="pguide" id="pGuide"></p>
-  <div class="btns"><button id="printNo" class="btn">취소</button><button id="printGo" class="btn primary">🖨 인쇄하기</button></div>
+  <div class="btns"><button id="printNo" class="btn">취소</button><button id="guideGo" class="btn">📋 만드는 방법 안내지 (1장)</button><button id="printGo" class="btn primary">🖨 인쇄하기</button></div>
 </div></div>
 <div id="printRoot"></div>
 <div id="hotEd" hidden><div class="box"><p>이 버튼을 누르면 나올 소리</p>
@@ -1169,14 +1180,16 @@ async function buildPrint(o) {
     const back = { html: '<div class="pend">끝</div>' };
     while ((halves.length + 1) % 4) halves.push({ html: '' });
     halves.push(back);
+    const STAPLES = '<i class="pstaple" style="top:63mm"></i><i class="pstaple" style="top:147mm"></i>';
     const n = halves.length, tick = '<i class="ptick t"></i><i class="ptick b"></i>';
     for (let k = 0; k < n / 4; k++) {
-      sheets.push(`<div class="psheet book">${half(halves[n - 1 - 2 * k], 'l')}${half(halves[2 * k], 'r')}${tick}</div>`);
-      sheets.push(`<div class="psheet book">${half(halves[2 * k + 1], 'l')}${half(halves[n - 2 - 2 * k], 'r')}${tick}</div>`);
+      const lab = (side) => `<div class="plabel"><b>${k + 1}</b>번 종이 · ${side}</div>`;
+      sheets.push(`<div class="psheet book">${half(halves[n - 1 - 2 * k], 'l')}${half(halves[2 * k], 'r')}${tick}${STAPLES}${lab('앞면')}</div>`);
+      sheets.push(`<div class="psheet book">${half(halves[2 * k + 1], 'l')}${half(halves[n - 2 - 2 * k], 'r')}${tick}${STAPLES}${lab('뒷면')}</div>`);
     }
   } else {
-    sheets.push(`<div class="psheet spread"><div class="phalf full">${await cover(153, 94)}</div></div>`);
-    for (let i = 1; i < halves.length; i += 2) sheets.push(`<div class="psheet spread">${half(halves[i], 'l')}${half(halves[i + 1], 'r')}</div>`);
+    sheets.push(`<div class="psheet spread"><div class="phalf full">${await cover(153, 94)}</div><div class="plabel"><b>1</b>번 종이 · 표지</div></div>`);
+    for (let i = 1; i < halves.length; i += 2) sheets.push(`<div class="psheet spread">${half(halves[i], 'l')}${half(halves[i + 1], 'r')}<div class="plabel"><b>${(i + 1) / 2 + 1}</b>번 종이</div></div>`);
   }
   return sheets;
 }
@@ -1229,20 +1242,44 @@ function openPrintDlg() {
   $('#lineLevel').value = S.level; $('#pName').checked = !!S.name; $('#pSound').checked = !!S.sound;
   $('#printDlg').hidden = false; refreshPrintDlg();
 }
+async function runPrint(sheets) {
+  const root = $('#printRoot'); root.innerHTML = sheets.join('');
+  await Promise.all([...root.querySelectorAll('img')].map(i => i.decode().catch(() => {})));
+  $('#printDlg').hidden = true; $('#toast').classList.remove('show');
+  document.body.classList.add('printing');
+  const done = () => { document.body.classList.remove('printing'); root.replaceChildren(); };
+  window.addEventListener('afterprint', done, { once: true });
+  window.print();
+}
 async function doPrint() {
   const o = readPrintOpts(); Object.assign(PSETTINGS, o); store.set('ssb.print', JSON.stringify(o));
   $('#printGo').disabled = true; toast('인쇄할 책을 만드는 중이에요…', 8000);
-  try {
-    const sheets = await buildPrint(o);
-    const root = $('#printRoot'); root.innerHTML = sheets.join('');
-    await Promise.all([...root.querySelectorAll('img')].map(i => i.decode().catch(() => {})));
-    $('#printDlg').hidden = true; $('#toast').classList.remove('show');
-    document.body.classList.add('printing');
-    const done = () => { document.body.classList.remove('printing'); root.replaceChildren(); };
-    window.addEventListener('afterprint', done, { once: true });
-    window.print();
-  } catch (e) { console.error(e); toast('인쇄할 책을 만들지 못했어요.'); }
+  try { await runPrint(await buildPrint(o)); }
+  catch (e) { console.error(e); toast('인쇄할 책을 만들지 못했어요.'); }
   finally { $('#printGo').disabled = false; }
+}
+// 만드는 순서 안내지 (한 장, 단면)
+function guideSheet(o) {
+  const n = cur.book.pages.length, sheets = Math.ceil((2 * n + 2) / 4);
+  const r = (x, y, w, hh, t, fill = '#fff') => `<rect x="${x}" y="${y}" width="${w}" height="${hh}" rx="3" fill="${fill}" stroke="#555" stroke-width="1.5"/>${t ? `<text x="${x + w / 2}" y="${y + hh / 2 + 6}" text-anchor="middle" font-size="18" font-weight="800" fill="#333">${t}</text>` : ''}`;
+  let steps;
+  if (o.mode === 'booklet') {
+    steps = [
+      [`종이 번호를 보고 <u>1번이 맨 위</u>, 그 밑에 2번, 3번… 차례로 쌓아요. (“앞면”이 위로)`, `<svg viewBox="0 0 120 80">${r(12, 40, 80, 32, sheets >= 3 ? '3' : '', '#eee')}${r(22, 26, 80, 32, sheets >= 2 ? '2' : '', '#f5f5f5')}${r(32, 10, 80, 32, '1', '#fff')}</svg>`],
+      [`쌓은 종이를 한꺼번에 <u>반으로 접어요.</u> 표지가 겉으로 나오게 해요.`, `<svg viewBox="0 0 120 80">${r(15, 15, 90, 55, '', '#fff')}<line x1="60" y1="10" x2="60" y2="75" stroke="#555" stroke-width="2" stroke-dasharray="5 4"/><path d="M84 42 q-10 -22 -24 -12" fill="none" stroke="#333" stroke-width="2.5"/><path d="M63 27 l-6 4 l7 4" fill="none" stroke="#333" stroke-width="2.5"/></svg>`],
+      [`접힌 선의 <u>● 표시</u>에 스테이플러를 찍어요. (선생님이 도와줘요)`, `<svg viewBox="0 0 120 80">${r(40, 8, 50, 64, '', '#fff')}<circle cx="40" cy="26" r="4.5" fill="#333"/><circle cx="40" cy="54" r="4.5" fill="#333"/></svg>`],
+      [`표지를 열고 <u>쪽 번호 순서</u>대로 넘겨 보아요. 색칠하고 따라 써요!`, `<svg viewBox="0 0 120 80">${r(12, 12, 46, 58, '1', '#fff')}${r(62, 12, 46, 58, '2', '#fff')}</svg>`]
+    ];
+  } else {
+    steps = [
+      [`종이 번호 순서대로 모아요. <u>표지(1번)가 맨 위</u>예요.`, `<svg viewBox="0 0 120 80">${r(12, 40, 80, 32, '3', '#eee')}${r(22, 26, 80, 32, '2', '#f5f5f5')}${r(32, 10, 80, 32, '1', '#fff')}</svg>`],
+      [`왼쪽 끝을 가지런히 맞추어요.`, `<svg viewBox="0 0 120 80">${r(22, 12, 80, 56, '', '#fff')}<line x1="22" y1="8" x2="22" y2="72" stroke="#555" stroke-width="2.5" stroke-dasharray="5 4"/></svg>`],
+      [`왼쪽을 <u>스테이플러</u>나 펀치로 묶어요. (선생님이 도와줘요)`, `<svg viewBox="0 0 120 80">${r(22, 12, 80, 56, '', '#fff')}<circle cx="30" cy="24" r="4.5" fill="#333"/><circle cx="30" cy="56" r="4.5" fill="#333"/></svg>`],
+      [`표지부터 <u>번호 순서</u>대로 넘겨 보아요. 색칠하고 따라 써요!`, `<svg viewBox="0 0 120 80">${r(12, 12, 46, 58, '', '#fff')}${r(62, 12, 46, 58, '', '#fff')}</svg>`]
+    ];
+  }
+  const boxes = steps.map((st, i) => `<div class="gstep"><span class="gn">${i + 1}</span>${st[1]}<p>${st[0]}</p></div>`).join('');
+  return `<div class="psheet pguide"><h1>📖 “${esc(titleOf(cur.book))}” 책 만드는 방법</h1><div class="gsteps">${boxes}</div><div class="gnote">${o.mode === 'booklet' ? `종이는 모두 ${sheets}장이에요. 종이 위쪽 모서리의 번호와 “앞면/뒷면” 글씨를 보고 정리해요.` : `종이는 모두 ${n + 1}장이에요.`}</div></div>`;
 }
 
 /* ---------- 이벤트 연결 ---------- */
@@ -1272,6 +1309,7 @@ $('#paintCoverOnly').onclick = () => { cur.book.paintCover = true; cur.book.page
 $('#paintAll').onclick = () => { cur.book.paintCover = true; cur.book.pages.forEach(p => { p.paint = true; }); touch(); refreshPrintDlg(); };
 $('#printNo').onclick = () => { $('#printDlg').hidden = true; };
 $('#printGo').onclick = doPrint;
+$('#guideGo').onclick = () => runPrint([guideSheet(readPrintOpts())]).catch(e => { console.error(e); toast('안내지를 만들지 못했어요.'); });
 $('#printDlg').addEventListener('input', () => { if (!$('#printDlg').hidden) refreshPrintDlg(); });
 $('#hotAddBtn').onclick = addHot;
 $('#firstBtn').onclick = goFirst;
