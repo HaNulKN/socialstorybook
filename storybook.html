@@ -148,13 +148,11 @@ button.noimg{width:100%;height:100%;border:0;background:transparent;cursor:point
 .hotbtn:active{filter:brightness(.9)}
 .hotbtn.editing{outline:3px dashed #2b7de9;outline-offset:3px;cursor:grab;touch-action:none}
 .imgframe.placing{cursor:crosshair;box-shadow:inset 0 0 0 4px #2b7de9}
-.coverpane{background:linear-gradient(#fff3d6,#ffe6b0);border-radius:0 8px 8px 0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4%;padding:7% 8%;text-align:center;cursor:pointer}
+.coverpane{background:linear-gradient(#fff3d6,#ffe6b0);border-radius:0 8px 8px 0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10%;padding:7% 8%;text-align:center;cursor:pointer}
 .coverpane h2{margin:0;font-size:1.9em;line-height:1.3;word-break:keep-all;color:#5a3512}
 .coverpane .cimg{flex:1 1 0;min-height:0;width:100%;display:flex;align-items:center;justify-content:center}
 .coverpane .cimg img{max-width:100%;max-height:100%;object-fit:contain;border-radius:10px;box-shadow:0 4px 10px rgba(60,35,10,.3)}
 .coverpane .copen{font-size:.8em;font-weight:700;color:var(--ink2)}
-.book.cover,.book.cover .half.left{background:transparent}
-.book.cover .spine{display:none}
 .hotbtn.playing{background:#d9534f;animation:pulse .7s ease-in-out infinite}
 .leaf .hotbtn{pointer-events:none}
 @keyframes pulse{50%{transform:translate(-50%,-50%) scale(1.15)}}
@@ -228,7 +226,7 @@ button.noimg{width:100%;height:100%;border:0;background:transparent;cursor:point
 <!-- 책장 -->
 <main id="shelfView" class="view" hidden>
   <header class="bar shelf-head">
-    <h1>📚 내 이야기책 <small style="font-size:16px;font-weight:600;color:var(--ink2)">버전 10 · 표지 먼저</small></h1>
+    <h1>📚 내 이야기책 <small style="font-size:16px;font-weight:600;color:var(--ink2)">버전 11 · 표지 그림 왼쪽</small></h1>
     <button id="newBtn" class="btn primary">＋ 새 이야기책</button>
     <button id="importBtn" class="btn">파일 불러오기</button>
     <button id="exportAllBtn" class="btn">전체 파일로 저장</button>
@@ -707,15 +705,17 @@ function fillRight(page) {
   liveBox = cur.edit ? null : pane.querySelector('.txt');
 }
 function blankPane() { return h('div', { class: 'pane' }); }
-function coverPane() {
-  const b = cur.book, src = coverImgOf(b);
-  const p = h('div', { class: 'pane coverpane' }, h('h2', { text: titleOf(b) }),
-    src && h('div', { class: 'cimg' }, h('img', { src, alt: '표지 그림', draggable: 'false' })),
+function coverPane() {   // 표지 오른쪽 장: 책 제목
+  const p = h('div', { class: 'pane coverpane' }, h('h2', { text: titleOf(cur.book) }),
     h('div', { class: 'copen' }, '눌러서 책을 열어요 ▶'));
   p.addEventListener('click', () => { if (!cur.edit) go(1); });
   return p;
 }
-function fillLeftAt(i) { if (i < 0) $('#paneL').replaceChildren(blankPane()); else fillLeft(cur.book.pages[i]); }
+function coverLeft() {   // 표지 왼쪽 장: 표지 그림
+  const src = coverImgOf(cur.book);
+  return src ? imagePane({ img: src, hot: [] }, false, false) : blankPane();
+}
+function fillLeftAt(i) { if (i < 0) $('#paneL').replaceChildren(coverLeft()); else fillLeft(cur.book.pages[i]); }
 function fillRightAt(i) {
   if (i < 0) { $('#paneR').replaceChildren(coverPane()); liveBox = null; } else fillRight(cur.book.pages[i]);
 }
@@ -759,7 +759,7 @@ function flipTo(newIdx) {
     if (flipping || newIdx === old || newIdx < -1 || newIdx >= pages.length) return res(false);
     flipping = true;
     const next = newIdx > old;
-    const leftFace = (i) => i < 0 ? blankPane() : imagePane(pages[i], false, false);
+    const leftFace = (i) => i < 0 ? coverLeft() : imagePane(pages[i], false, false);
     const rightFace = (i) => i < 0 ? coverPane() : textPane(pages[i], false);
     cur.idx = newIdx; updateInfo(); playFlip();
     const leaf = h('div', { class: 'leaf ' + (next ? 'next' : 'prev') },
