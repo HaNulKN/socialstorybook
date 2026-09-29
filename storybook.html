@@ -19,7 +19,7 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);
 body{overflow:hidden}
 button,input,textarea{font:inherit;color:inherit}
 :focus-visible{outline:4px solid #2b7de9;outline-offset:2px}
-input[type=checkbox]{width:28px;height:28px;accent-color:var(--accent);margin:0;flex:none}
+input[type=checkbox],input[type=radio]{width:28px;height:28px;accent-color:var(--accent);margin:0;flex:none}
 input[type=range]{accent-color:var(--accent);height:40px;width:170px;margin:0}
 
 .btn{min-height:56px;padding:0 22px;border:3px solid var(--wood);border-radius:18px;background:#fff;
@@ -126,8 +126,8 @@ button.noimg{width:100%;height:100%;border:0;background:transparent;cursor:point
   background:#3d2a18;color:#fff;padding:16px 26px;border-radius:18px;font-size:21px;font-weight:700;max-width:90vw;
   text-align:center;transition:.25s;white-space:pre-line}
 #toast.show{opacity:1;transform:translate(-50%,0)}
-#modal,#hotEd{position:fixed;inset:0;background:rgba(60,35,10,.5);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px}
-#modal .box,#hotEd .box{background:#fffaf0;border:4px solid var(--wood);border-radius:26px;padding:30px;max-width:520px;width:100%;text-align:center}
+#modal,#hotEd,#printDlg{position:fixed;inset:0;background:rgba(60,35,10,.5);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px}
+#modal .box,#hotEd .box,#printDlg .box{background:#fffaf0;border:4px solid var(--wood);border-radius:26px;padding:30px;max-width:520px;width:100%;text-align:center}
 #modal p,#hotEd p{margin:0 0 26px;font-size:26px;line-height:1.6;font-weight:700;white-space:pre-line}
 #modal .btns,#hotEd .btns{display:flex;gap:16px;justify-content:center}
 #modal .btn,#hotEd .btn{min-width:150px;min-height:64px;font-size:24px}
@@ -150,6 +150,55 @@ button.noimg{width:100%;height:100%;border:0;background:transparent;cursor:point
 .hotbtn.playing{background:#d9534f;animation:pulse .7s ease-in-out infinite}
 .leaf .hotbtn{pointer-events:none}
 @keyframes pulse{50%{transform:translate(-50%,-50%) scale(1.15)}}
+/* 따라쓸 단어 고르기 */
+.pickview{cursor:default}
+.pickw{font:inherit;color:inherit;background:transparent;border:3px dashed #d8c39c;border-radius:.3em;padding:0 .12em;margin:0;cursor:pointer}
+.pickw.on{background:#dff5e3;border:3px solid #2f9e5b}
+/* 인쇄 설정 창 */
+#printDlg .box{max-width:720px;max-height:100%;overflow:auto;text-align:left}
+#printDlg h2{margin:0 0 14px;font-size:30px;text-align:center}
+.pgrp{margin-bottom:16px}
+.pgrp h3{margin:0 0 8px;font-size:21px;color:var(--wood-d)}
+.opt{display:flex;align-items:flex-start;gap:12px;padding:10px 12px;border:3px solid var(--line);border-radius:14px;margin-bottom:8px;
+  background:#fff;cursor:pointer;font-size:21px;font-weight:700;line-height:1.35}
+.opt:has(input:checked){border-color:var(--accent);background:#fff4e3}
+.opt input{margin-top:3px}
+.opt small{display:block;font-size:17px;font-weight:400;color:var(--ink2)}
+.pline2{display:flex;align-items:center;gap:12px;font-size:19px;font-weight:700;flex-wrap:wrap;margin:4px 0 6px}
+#linePrev{max-width:180px;max-height:140px;border:2px solid var(--line);border-radius:10px;background:#fff}
+.pguide{background:#fff4e3;border-radius:14px;padding:12px 14px;font-size:18px;line-height:1.55;margin:0 0 16px!important;font-weight:400!important}
+#printDlg .btns{justify-content:center}
+
+/* 인쇄용 (화면에서는 숨김) */
+#printRoot{display:none}
+@page{size:A4 landscape;margin:0}
+@media print{
+  html,body{height:auto!important;overflow:visible!important;background:#fff!important}
+  body.printing>*:not(#printRoot){display:none!important}
+  body.printing #printRoot{display:block}
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}
+.psheet{position:relative;width:297mm;height:210mm;overflow:hidden;display:flex;background:#fff;break-after:page;page-break-after:always;color:#222}
+.psheet:last-child{break-after:auto;page-break-after:auto}
+.phalf{position:relative;width:148.5mm;height:210mm;padding:12mm;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden}
+.psheet.book .phalf.l{padding-right:16mm}.psheet.book .phalf.r{padding-left:16mm}
+.psheet.spread .phalf.l{padding-left:20mm}
+.phalf.full{width:297mm}
+.ptick{position:absolute;left:148.5mm;width:0;border-left:.3mm solid #aaa;height:5mm}
+.ptick.t{top:0}.ptick.b{bottom:0}
+.pnum{position:absolute;bottom:6mm;left:0;right:0;text-align:center;font-size:10pt;color:#999}
+.pimg{position:relative}
+.pimg img{width:100%;height:100%;display:block}
+.pimg.pframe{outline:.3mm solid #ddd}
+.pmark{position:absolute;transform:translate(-50%,-50%);width:9mm;height:9mm;border-radius:50%;border:.5mm solid #666;background:#fff;font-size:12pt;
+  display:flex;align-items:center;justify-content:center}
+.ptext{width:100%;line-height:2.2;font-weight:600;white-space:pre-wrap;word-break:keep-all;overflow-wrap:anywhere;text-align:left}
+.pblank{display:inline-block;height:1.1em;margin:0 .12em;border-bottom:.45mm solid #333}
+.pcover{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8mm;width:100%;height:100%;text-align:center}
+.pcover h1{margin:0;line-height:1.3;word-break:keep-all}
+.pname{font-size:16pt;font-weight:700;display:flex;align-items:baseline;gap:3mm}
+.pname i{display:inline-block;width:60mm;border-bottom:.4mm solid #333}
+.pend{font-size:60pt;font-weight:800}
 @media (max-width:820px){
   .nav{width:52px;height:96px;font-size:30px}
   .btn{padding:0 16px;font-size:18px}
@@ -189,6 +238,7 @@ button.noimg{width:100%;height:100%;border:0;background:transparent;cursor:point
     </div>
     <button id="editBtn" class="btn toggle" aria-pressed="false">✏️ 편집 모드</button>
     <label class="chk"><input type="checkbox" id="soundChk"> 쪽 넘김 소리</label>
+    <button id="printBtn" class="btn">🖨 책으로 인쇄</button>
     <button id="saveFileBtn" class="btn">이 책 파일로 저장</button>
     <span id="saveStat" class="stat" role="status"></span>
   </header>
@@ -209,6 +259,7 @@ button.noimg{width:100%;height:100%;border:0;background:transparent;cursor:point
     <div class="row" id="editRow" hidden>
       <button id="addBtn" class="btn">＋ 쪽 추가</button>
       <button id="hotAddBtn" class="btn">🔊 소리 버튼 추가</button>
+      <button id="pickBtn" class="btn toggle" aria-pressed="false">✍ 따라쓸 단어 고르기</button>
       <button id="delBtn" class="btn danger">🗑 쪽 삭제</button>
       <button id="moveLBtn" class="btn">◀ 앞으로 옮기기</button>
       <button id="moveRBtn" class="btn">뒤로 옮기기 ▶</button>
@@ -232,6 +283,26 @@ button.noimg{width:100%;height:100%;border:0;background:transparent;cursor:point
 <input type="file" id="imgFile" accept="image/*" hidden>
 <input type="file" id="importFile" accept=".json,.storybook.json,application/json" multiple hidden>
 <div id="toast" role="status" aria-live="polite"></div>
+<div id="printDlg" hidden><div class="box">
+  <h2>🖨 책으로 인쇄하기</h2>
+  <div class="pgrp"><h3>만드는 방식</h3>
+    <label class="opt"><input type="radio" name="pmode" value="booklet"><span>접는 소책자 (추천)<small>A4 종이 앞뒤에 인쇄해서 반으로 접으면 A5 책이 돼요. 가운데를 스테이플러로 찍어요.</small></span></label>
+    <label class="opt"><input type="radio" name="pmode" value="spread"><span>펼침면 한 장씩<small>A4 가로 한 장에 한 쪽(왼쪽 그림, 오른쪽 글). 왼쪽을 묶어요.</small></span></label></div>
+  <div class="pgrp"><h3>그림</h3>
+    <label class="opt"><input type="radio" name="pimg" value="color"><span>원래 색 그대로</span></label>
+    <label class="opt"><input type="radio" name="pimg" value="line"><span>색칠하기용 (윤곽선만)<small>컬러 그림을 선만 남긴 색칠 도안으로 바꿔요.</small></span></label>
+    <div class="pline2" id="lineOpts" hidden><label>선 진하기 <input type="range" id="lineLevel" min="0" max="100" step="5" value="50"></label><canvas id="linePrev" width="10" height="10"></canvas></div></div>
+  <div class="pgrp"><h3>글</h3>
+    <label class="opt"><input type="radio" name="ptext" value="plain"><span>그대로</span></label>
+    <label class="opt"><input type="radio" name="ptext" value="dots"><span>따라쓰기 (점선 글씨)<small>고른 단어만 점선으로 나와요. 연필로 따라 써요.</small></span></label>
+    <label class="opt"><input type="radio" name="ptext" value="blank"><span>빈칸 채우기 (밑줄)<small>고른 단어가 빈칸으로 나와요. 직접 써 넣어요.</small></span></label>
+    <div id="traceInfo" class="pline2"></div></div>
+  <div class="pgrp"><label class="chk"><input type="checkbox" id="pName"> 표지에 “지은이” 쓰는 칸</label>
+    <label class="chk" id="pSoundRow"><input type="checkbox" id="pSound"> 소리 버튼 자리에 🔊 표시</label></div>
+  <p class="pguide" id="pGuide"></p>
+  <div class="btns"><button id="printNo" class="btn">취소</button><button id="printGo" class="btn primary">🖨 인쇄하기</button></div>
+</div></div>
+<div id="printRoot"></div>
 <div id="hotEd" hidden><div class="box"><p>이 버튼을 누르면 나올 소리</p>
   <textarea id="hotText" maxlength="200" placeholder="말을 적으면 기기 음성이 읽어 줘요. 예) 안녕하세요?" aria-label="소리 버튼 말"></textarea>
   <div class="recrow"><button id="recBtn" class="btn">● 녹음하기</button><button id="recPlay" class="btn" hidden>▶ 녹음 듣기</button><button id="recDel" class="btn danger" hidden>녹음 지우기</button></div>
@@ -265,7 +336,7 @@ const store = {
   get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : v; } catch { return d; } },
   set(k, v) { try { localStorage.setItem(k, String(v)); } catch {} }
 };
-const blankPage = () => ({ id: uid(), img: null, text: '', hot: [] });
+const blankPage = () => ({ id: uid(), img: null, text: '', hot: [], trace: [] });
 const titleOf = (b) => b.title.trim() || '제목 없는 이야기책';
 
 let toastTimer;
@@ -442,6 +513,7 @@ function normBook(o) {
     id: uid(),
     img: p && typeof p.img === 'string' && p.img.startsWith('data:image/') ? p.img : null,
     text: p && typeof p.text === 'string' ? p.text : '',
+    trace: p && Array.isArray(p.trace) ? p.trace.filter(x => typeof x === 'string' && x && x.length <= 30).slice(0, 100) : [],
     hot: p && Array.isArray(p.hot) ? p.hot.map(x => x && ({
       id: uid(), x: clamp(Number(x.x) || 0.5, 0.06, 0.94), y: clamp(Number(x.y) || 0.5, 0.06, 0.94),
       text: typeof x.text === 'string' ? x.text.slice(0, 200) : '',
@@ -550,9 +622,32 @@ function renderWords(box, text) {
   if (last < text.length) box.append(text.slice(last));
   box._words = words;
 }
+const coreOf = (w) => (w.match(/^[^\p{L}\p{N}]*(.*?)[^\p{L}\p{N}]*$/su) || [, ''])[1];
 function textPane(page, editable) {
   const p = h('div', { class: 'pane text-pane' });
-  if (editable) {
+  if (editable && cur.pick) {
+    const box = h('div', { class: 'txt pickview' });
+    const trace = (page.trace = page.trace || []);
+    if (!page.text.trim()) box.append(h('span', { class: 'hint' }, '(먼저 글을 써 주세요)'));
+    const re = /\S+/g; let m, last = 0;
+    while ((m = re.exec(page.text))) {
+      if (m.index > last) box.append(page.text.slice(last, m.index));
+      last = m.index + m[0].length;
+      const core = coreOf(m[0]);
+      if (!core) { box.append(m[0]); continue; }
+      const b = h('button', { class: 'pickw' + (trace.includes(core) ? ' on' : ''), type: 'button' }, m[0]);
+      b.addEventListener('click', () => {
+        const i = trace.indexOf(core);
+        if (i >= 0) trace.splice(i, 1); else trace.push(core);
+        // 같은 단어는 함께 켜지고 꺼진다
+        box.querySelectorAll('.pickw').forEach(x => x.classList.toggle('on', trace.includes(coreOf(x.textContent))));
+        touch();
+      });
+      box.append(b);
+    }
+    if (last < page.text.length) box.append(page.text.slice(last));
+    p.append(box);
+  } else if (editable) {
     const ta = h('textarea', { class: 'ta', placeholder: '여기에 글을 써 주세요', 'aria-label': '이 쪽의 글' });
     ta.value = page.text;
     ta.addEventListener('input', () => { page.text = ta.value; touch(); });
@@ -593,6 +688,8 @@ function renderBook() {
   $('#editBtn').setAttribute('aria-pressed', String(cur.edit));
   $('#editBtn').textContent = cur.edit ? '✏️ 편집 중 (끝내기)' : '✏️ 편집 모드';
   $('#editRow').hidden = !cur.edit;
+  $('#pickBtn').setAttribute('aria-pressed', String(!!cur.pick));
+  $('#pickBtn').textContent = cur.pick ? '✍ 단어 고르는 중 (끝내기)' : '✍ 따라쓸 단어 고르기';
   $('#readBtn').disabled = cur.edit;
   $('#readBtn').title = cur.edit ? '편집 모드를 끝내면 읽어줄 수 있어요' : '';
   document.title = titleOf(b) + ' - 이야기책';
@@ -633,7 +730,12 @@ function go(delta) {
 /* ---------- 편집 ---------- */
 function setEdit(v) {
   if (!cur || flipping) return;
-  stopReading(); cur.edit = v; renderBook();
+  stopReading(); cur.edit = v; cur.pick = false; renderBook();
+}
+function setPick(v) {
+  if (!cur || !cur.edit || flipping) return;
+  cur.pick = v; renderBook();
+  if (v) toast('따라쓰고 싶은 단어를 눌러 보세요.\n다시 누르면 해제돼요.', 5000);
 }
 async function pickImage(page) { pendingImagePage = page; $('#imgFile').value = ''; $('#imgFile').click(); }
 let pendingImagePage = null;
@@ -904,6 +1006,166 @@ function addHot() {
 function goFirst() { if (cur && cur.idx > 0) { stopReading(); flipTo(0); } }
 function toggleRead() { if (R.on) stopReading(); else startReading(); }
 
+/* ---------- 책으로 인쇄 ---------- */
+const loadImg = (src) => new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = src; });
+// 색칠용 윤곽선: 흑백 → 살짝 흐리기 → 소벨 경계 → 문턱값 → 조금 굵게
+function lineArt(img, level, maxSide = 1100) {
+  const sc = Math.min(1, maxSide / Math.max(img.naturalWidth, img.naturalHeight));
+  const w = Math.max(3, Math.round(img.naturalWidth * sc)), hh = Math.max(3, Math.round(img.naturalHeight * sc));
+  const c = document.createElement('canvas'); c.width = w; c.height = hh;
+  const g = c.getContext('2d', { willReadFrequently: true });
+  g.fillStyle = '#fff'; g.fillRect(0, 0, w, hh); g.drawImage(img, 0, 0, w, hh);
+  const d = g.getImageData(0, 0, w, hh).data, n = w * hh;
+  // 색 채널마다 경계를 찾아 가장 센 값을 쓴다 (밝기가 비슷한 색끼리도 구분)
+  const thr = 200 - level * 1.7, mask = new Uint8Array(n), mag = new Float32Array(n);
+  for (let ch = 0; ch < 3; ch++) {
+    const bl = new Float32Array(n);
+    for (let y = 0; y < hh; y++) for (let x = 0; x < w; x++) {
+      let sum = 0, cnt = 0;
+      for (let dy = -1; dy <= 1; dy++) { const yy = y + dy; if (yy < 0 || yy >= hh) continue;
+        for (let dx = -1; dx <= 1; dx++) { const xx = x + dx; if (xx < 0 || xx >= w) continue; sum += d[(yy * w + xx) * 4 + ch]; cnt++; } }
+      bl[y * w + x] = sum / cnt;
+    }
+    for (let y = 1; y < hh - 1; y++) for (let x = 1; x < w - 1; x++) {
+      const i = y * w + x;
+      const gx = -bl[i - w - 1] + bl[i - w + 1] - 2 * bl[i - 1] + 2 * bl[i + 1] - bl[i + w - 1] + bl[i + w + 1];
+      const gy = -bl[i - w - 1] - 2 * bl[i - w] - bl[i - w + 1] + bl[i + w - 1] + 2 * bl[i + w] + bl[i + w + 1];
+      const m = Math.abs(gx) + Math.abs(gy);
+      if (m > mag[i]) mag[i] = m;
+    }
+  }
+  for (let i = 0; i < n; i++) if (mag[i] > thr) mask[i] = 1;
+  const out = g.createImageData(w, hh), o = out.data;
+  for (let y = 0; y < hh; y++) for (let x = 0; x < w; x++) {
+    let on = 0;
+    for (let dy = -1; dy <= 1 && !on; dy++) { const yy = y + dy; if (yy < 0 || yy >= hh) continue;
+      for (let dx = -1; dx <= 1; dx++) { const xx = x + dx; if (xx >= 0 && xx < w && mask[yy * w + xx]) { on = 1; break; } } }
+    const v = on ? 40 : 255, k = (y * w + x) * 4;
+    o[k] = o[k + 1] = o[k + 2] = v; o[k + 3] = 255;
+  }
+  g.putImageData(out, 0, 0);
+  return c;
+}
+const esc = (t) => t.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const pxFor = (text) => { const n = text.replace(/\s/g, '').length; return n <= 30 ? 36 : n <= 60 ? 30 : n <= 110 ? 26 : n <= 170 ? 22 : 18; };
+function textHtml(page, mode) {
+  const text = page.text, px = pxFor(text), ff = getComputedStyle(document.body).fontFamily;
+  const marks = new Set(page.trace || []);
+  const cv = document.createElement('canvas').getContext('2d'); cv.font = `600 ${px}px ${ff}`;
+  let out = '', last = 0, m; const re = /\S+/g;
+  while ((m = re.exec(text))) {
+    out += esc(text.slice(last, m.index)); last = m.index + m[0].length;
+    const w = m[0], core = coreOf(w);
+    if (mode === 'plain' || !core || !marks.has(core)) { out += esc(w); continue; }
+    const at = w.indexOf(core), pre = w.slice(0, at), post = w.slice(at + core.length);
+    const cw = cv.measureText(core).width;
+    if (mode === 'blank') out += esc(pre) + `<span class="pblank" style="width:${Math.max(cw, px * 1.6).toFixed(1)}px"></span>` + esc(post);
+    else {
+      const W = Math.ceil(cw) + 4, H = Math.round(px * 1.5), y = Math.round(px * 1.1);
+      out += esc(pre) + `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" style="vertical-align:${-(H - y)}px"><text x="2" y="${y}" font-family="${esc(ff)}" font-size="${px}" font-weight="600" fill="#e4e4e4" stroke="#555" stroke-width="1.1" stroke-dasharray="2.6 2.4" stroke-linejoin="round" paint-order="stroke">${esc(core)}</text></svg>` + esc(post);
+    }
+  }
+  return { html: out + esc(text.slice(last)), px };
+}
+async function buildPrint(o) {
+  const book = cur.book, cache = new Map();
+  const srcOf = async (page) => {
+    if (o.img !== 'line') return { src: page.img, img: await loadImg(page.img) };
+    if (!cache.has(page.img)) { const im = await loadImg(page.img); const c = lineArt(im, o.level); cache.set(page.img, { src: c.toDataURL('image/png'), img: c }); }
+    return cache.get(page.img);
+  };
+  const pic = async (page, bw, bh, marks) => {
+    if (!page.img) return '';
+    const r = await srcOf(page), nw = r.img.naturalWidth || r.img.width, nh = r.img.naturalHeight || r.img.height;
+    const k = Math.min(bw / nw, bh / nh), w = nw * k, hh = nh * k;
+    const dots = marks ? (page.hot || []).map(hs => `<span class="pmark" style="left:${hs.x * 100}%;top:${hs.y * 100}%">🔊</span>`).join('') : '';
+    return `<div class="pimg ${o.img === 'line' ? 'pframe' : ''}" style="width:${w.toFixed(1)}mm;height:${hh.toFixed(1)}mm"><img src="${r.src}" alt="">${dots}</div>`;
+  };
+  const coverPage = book.pages.find(p => p.img);
+  const title = titleOf(book), tpx = title.length <= 10 ? 56 : title.length <= 20 ? 44 : 34;
+  const cover = async (bw, bh) => `<div class="pcover"><h1 style="font-size:${tpx}px">${esc(title)}</h1>${coverPage ? await pic(coverPage, bw, bh, false) : ''}${o.name ? '<div class="pname">지은이 <i></i></div>' : ''}</div>`;
+  const halves = [];   // 소책자용 낱쪽 목록
+  halves.push({ html: await cover(118, 110) });
+  let num = 0;
+  for (const p of book.pages) {
+    halves.push({ html: await pic(p, 118, 172, o.sound), num: ++num });
+    const t = textHtml(p, o.text);
+    halves.push({ html: `<div class="ptext" style="font-size:${t.px}px">${t.html}</div>`, num: ++num });
+  }
+  const sheets = [];
+  const half = (x, cls) => `<div class="phalf ${cls}">${x ? x.html : ''}${x && x.num ? `<div class="pnum">${x.num}</div>` : ''}</div>`;
+  if (o.mode === 'booklet') {
+    const back = { html: '<div class="pend">끝</div>' };
+    while ((halves.length + 1) % 4) halves.push({ html: '' });
+    halves.push(back);
+    const n = halves.length, tick = '<i class="ptick t"></i><i class="ptick b"></i>';
+    for (let k = 0; k < n / 4; k++) {
+      sheets.push(`<div class="psheet book">${half(halves[n - 1 - 2 * k], 'l')}${half(halves[2 * k], 'r')}${tick}</div>`);
+      sheets.push(`<div class="psheet book">${half(halves[2 * k + 1], 'l')}${half(halves[n - 2 - 2 * k], 'r')}${tick}</div>`);
+    }
+  } else {
+    sheets.push(`<div class="psheet spread"><div class="phalf full">${await cover(180, 110)}</div></div>`);
+    for (let i = 1; i < halves.length; i += 2) sheets.push(`<div class="psheet spread">${half(halves[i], 'l')}${half(halves[i + 1], 'r')}</div>`);
+  }
+  return sheets;
+}
+const PSETTINGS = { mode: 'booklet', img: 'color', text: 'plain', level: 50, name: true, sound: false };
+try { Object.assign(PSETTINGS, JSON.parse(store.get('ssb.print', '{}'))); } catch {}
+const radio = (name) => (document.querySelector(`input[name=${name}]:checked`) || {}).value;
+let prevTimer = null;
+function readPrintOpts() {
+  return { mode: radio('pmode'), img: radio('pimg'), text: radio('ptext'), level: +$('#lineLevel').value,
+    name: $('#pName').checked, sound: $('#pSound').checked };
+}
+function refreshPrintDlg() {
+  const o = readPrintOpts(), n = cur.book.pages.length;
+  $('#lineOpts').hidden = o.img !== 'line';
+  const sheets = Math.ceil((2 * n + 2) / 4);
+  $('#pGuide').textContent = o.mode === 'booklet'
+    ? `종이 ${sheets}장(앞뒤 인쇄)이 나와요. 인쇄창에서 용지 A4 · 가로 · 배율 100% · 여백 없음 · 배경 그래픽 켜기, 양면은 “짧은 가장자리(짧은 변)로 넘기기”를 고르세요. 처음엔 1~2쪽만 시험 인쇄해서 앞뒤 방향이 맞는지 확인해 보세요. 뽑은 종이를 순서대로 겹쳐 반으로 접고, 접힌 가운데를 스테이플러로 찍어요.`
+    : `종이 ${n + 1}장이 나와요. 인쇄창에서 용지 A4 · 가로 · 배율 100% · 배경 그래픽 켜기, 단면으로 인쇄하세요. 왼쪽을 스테이플러나 펀치로 묶으면 돼요.`;
+  const cnt = cur.book.pages.reduce((a, p) => a + (p.trace || []).length, 0);
+  $('#traceInfo').textContent = cnt ? `지금 고른 따라쓸 단어: ${cnt}개` : '따라쓸 단어를 아직 안 골랐어요. (편집 모드의 “✍ 따라쓸 단어 고르기”에서 골라요)';
+  $('#pSoundRow').hidden = !cur.book.pages.some(p => (p.hot || []).length);
+  // 윤곽선 미리보기
+  const pg = cur.book.pages.find(p => p.img);
+  $('#linePrev').hidden = !pg || o.img !== 'line';
+  if (pg && o.img === 'line') {
+    clearTimeout(prevTimer);
+    prevTimer = setTimeout(async () => {
+      try {
+        const c = lineArt(await loadImg(pg.img), o.level, 360), pv = $('#linePrev');
+        pv.width = c.width; pv.height = c.height; pv.getContext('2d').drawImage(c, 0, 0);
+      } catch {}
+    }, 150);
+  }
+}
+function openPrintDlg() {
+  if (!cur) return;
+  stopReading();
+  const S = PSETTINGS;
+  for (const [k, v] of [['pmode', S.mode], ['pimg', S.img], ['ptext', S.text]]) {
+    const el = document.querySelector(`input[name=${k}][value=${v}]`); if (el) el.checked = true;
+  }
+  $('#lineLevel').value = S.level; $('#pName').checked = !!S.name; $('#pSound').checked = !!S.sound;
+  $('#printDlg').hidden = false; refreshPrintDlg();
+}
+async function doPrint() {
+  const o = readPrintOpts(); Object.assign(PSETTINGS, o); store.set('ssb.print', JSON.stringify(o));
+  $('#printGo').disabled = true; toast('인쇄할 책을 만드는 중이에요…', 8000);
+  try {
+    const sheets = await buildPrint(o);
+    const root = $('#printRoot'); root.innerHTML = sheets.join('');
+    await Promise.all([...root.querySelectorAll('img')].map(i => i.decode().catch(() => {})));
+    $('#printDlg').hidden = true; $('#toast').classList.remove('show');
+    document.body.classList.add('printing');
+    const done = () => { document.body.classList.remove('printing'); root.replaceChildren(); };
+    window.addEventListener('afterprint', done, { once: true });
+    window.print();
+  } catch (e) { console.error(e); toast('인쇄할 책을 만들지 못했어요.'); }
+  finally { $('#printGo').disabled = false; }
+}
+
 /* ---------- 이벤트 연결 ---------- */
 $('#newBtn').onclick = $('#newBtn2').onclick = newBook;
 $('#importBtn').onclick = () => { $('#importFile').value = ''; $('#importFile').click(); };
@@ -916,6 +1178,11 @@ $('#titleIn').addEventListener('input', (e) => { cur.book.title = e.target.value
 $('#prevBtn').onclick = () => go(-1);
 $('#nextBtn').onclick = () => go(1);
 $('#addBtn').onclick = addPage;
+$('#pickBtn').onclick = () => setPick(!cur.pick);
+$('#printBtn').onclick = openPrintDlg;
+$('#printNo').onclick = () => { $('#printDlg').hidden = true; };
+$('#printGo').onclick = doPrint;
+$('#printDlg').addEventListener('input', () => { if (!$('#printDlg').hidden) refreshPrintDlg(); });
 $('#hotAddBtn').onclick = addHot;
 $('#firstBtn').onclick = goFirst;
 $('#hotOk').onclick = () => closeHotEditor(false);
@@ -951,6 +1218,7 @@ $('#autoChk').addEventListener('change', (e) => { autoNext = e.target.checked; s
 const isTyping = (t) => t.tagName === 'TEXTAREA' || (t.tagName === 'INPUT' && !['checkbox', 'range', 'button', 'file'].includes(t.type));
 document.addEventListener('keydown', (e) => {
   if (!$('#modal').hidden) { if (e.key === 'Escape') closeModal(false); return; }
+  if (!$('#printDlg').hidden) { if (e.key === 'Escape') $('#printDlg').hidden = true; return; }
   if (!$('#hotEd').hidden) { if (e.key === 'Escape') closeHotEditor(false); return; }
   if ($('#bookView').hidden || !cur) return;
   const t = e.target;
