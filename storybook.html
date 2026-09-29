@@ -135,6 +135,12 @@ button.noimg{width:100%;height:100%;border:0;background:transparent;cursor:point
 #hotEd textarea{width:100%;min-height:120px;resize:none;border:3px solid var(--wood);border-radius:14px;padding:12px;
   font-size:26px;font-weight:600;margin-bottom:22px;font-family:inherit}
 #hotEd .btns{flex-wrap:wrap}
+#hotEd .box{max-height:100%;overflow:auto}
+#hotEd textarea{min-height:90px;margin-bottom:16px}
+.recrow{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-bottom:10px}
+.recrow .btn{min-height:56px;font-size:20px}
+.recrow .btn.danger.rec{background:#d9534f;color:#fff}
+.recinfo{min-height:28px;font-size:19px;font-weight:700;color:var(--ink2);margin-bottom:18px}
 .hots{position:absolute;pointer-events:none}
 .hotbtn{position:absolute;transform:translate(-50%,-50%);width:max(54px,2.3em);height:max(54px,2.3em);border-radius:50%;
   border:4px solid #fff;background:var(--accent);color:#fff;font-size:.9em;line-height:1;cursor:pointer;pointer-events:auto;
@@ -226,8 +232,10 @@ button.noimg{width:100%;height:100%;border:0;background:transparent;cursor:point
 <input type="file" id="imgFile" accept="image/*" hidden>
 <input type="file" id="importFile" accept=".json,.storybook.json,application/json" multiple hidden>
 <div id="toast" role="status" aria-live="polite"></div>
-<div id="hotEd" hidden><div class="box"><p>이 소리 버튼을 누르면 나올 말</p>
-  <textarea id="hotText" maxlength="200" placeholder="예) 안녕하세요?" aria-label="소리 버튼 말"></textarea>
+<div id="hotEd" hidden><div class="box"><p>이 버튼을 누르면 나올 소리</p>
+  <textarea id="hotText" maxlength="200" placeholder="말을 적으면 기기 음성이 읽어 줘요. 예) 안녕하세요?" aria-label="소리 버튼 말"></textarea>
+  <div class="recrow"><button id="recBtn" class="btn">● 녹음하기</button><button id="recPlay" class="btn" hidden>▶ 녹음 듣기</button><button id="recDel" class="btn danger" hidden>녹음 지우기</button></div>
+  <div id="recInfo" class="recinfo" role="status"></div>
   <div class="btns"><button id="hotTry" class="btn">▶ 들어보기</button><button id="hotDel" class="btn danger">삭제</button><button id="hotOk" class="btn primary">확인</button></div></div></div>
 <div id="modal" hidden><div class="box"><p id="modalMsg"></p><div class="btns">
   <button id="modalNo" class="btn">취소</button><button id="modalOk" class="btn primary">확인</button></div></div></div>
@@ -434,8 +442,11 @@ function normBook(o) {
     id: uid(),
     img: p && typeof p.img === 'string' && p.img.startsWith('data:image/') ? p.img : null,
     text: p && typeof p.text === 'string' ? p.text : '',
-    hot: p && Array.isArray(p.hot) ? p.hot.filter(x => x && typeof x.text === 'string' && x.text.trim()).map(x => ({
-      id: uid(), x: clamp(Number(x.x) || 0.5, 0.06, 0.94), y: clamp(Number(x.y) || 0.5, 0.06, 0.94), text: x.text.slice(0, 200) })) : []
+    hot: p && Array.isArray(p.hot) ? p.hot.map(x => x && ({
+      id: uid(), x: clamp(Number(x.x) || 0.5, 0.06, 0.94), y: clamp(Number(x.y) || 0.5, 0.06, 0.94),
+      text: typeof x.text === 'string' ? x.text.slice(0, 200) : '',
+      audio: typeof x.audio === 'string' && x.audio.startsWith('data:audio/') ? x.audio : null
+    })).filter(x => x && (x.text.trim() || x.audio)) : []
   }));
   if (!pages.length) pages.push(blankPage());
   const now = Date.now();
@@ -488,7 +499,7 @@ window.addEventListener('resize', fit);
 
 const hotRO = new ResizeObserver(es => es.forEach(en => en.target._lay && en.target._lay()));
 function hotButton(page, hs, editable, layer) {
-  const b = h('button', { class: 'hotbtn' + (editable ? ' editing' : ''), type: 'button', title: hs.text, 'aria-label': '소리 버튼: ' + hs.text }, '🔊');
+  const b = h('button', { class: 'hotbtn' + (editable ? ' editing' : ''), type: 'button', title: hs.text || '녹음된 소리', 'aria-label': '소리 버튼: ' + (hs.text || '녹음된 소리') }, '🔊');
   b.style.left = hs.x * 100 + '%'; b.style.top = hs.y * 100 + '%';
   if (!editable) { b.addEventListener('click', () => playHot(hs, b)); return b; }
   let drag = false, moved = false, sx = 0, sy = 0;
@@ -708,6 +719,7 @@ function cancelSpeech() {
   R.token++; clearTimeout(R.fb); clearTimeout(R.guard); R.fb = R.guard = null; R.t0 = 0; R.got = false;
   clearActive(); R.words = [];
   document.querySelectorAll('.hotbtn.playing').forEach(b => b.classList.remove('playing'));
+  if (hotAudio) { try { hotAudio.pause(); } catch {} hotAudio = null; }
   if (synth) try { synth.cancel(); } catch {}
 }
 function stopReading() {
@@ -756,16 +768,28 @@ function makeUtter(text, rt) {
   return u;
 }
 // 그림 위 소리 버튼: 정해 둔 말을 기기 음성으로 들려준다
-function playHot(hs, btn) {
-  if (!synth || typeof SpeechSynthesisUtterance === 'undefined') { toast('이 기기에서는 소리를 낼 수 없어요.'); return; }
-  const was = btn && btn.classList.contains('playing');
+let hotAudio = null;
+function playAudioData(data, btn) {
   stopReading(); audio();
-  const text = (hs.text || '').trim(); if (was || !text) return;
+  const my = R.token, a = new Audio(data); hotAudio = a;
+  if (btn) btn.classList.add('playing');
+  const done = () => { if (R.token === my && btn) btn.classList.remove('playing'); };
+  a.onended = a.onerror = done;
+  a.play().catch(() => { done(); toast('소리를 재생하지 못했어요.'); });
+}
+function speakText(text, btn) {
+  if (!synth || typeof SpeechSynthesisUtterance === 'undefined') { toast('이 기기에서는 소리를 낼 수 없어요.'); return; }
+  stopReading(); audio();
   const my = R.token, u = makeUtter(text, rate);
   if (btn) btn.classList.add('playing');
   u.onend = u.onerror = () => { if (R.token === my && btn) btn.classList.remove('playing'); };
   R.utter = u;
   setTimeout(() => { if (R.token === my) { try { synth.speak(u); } catch {} } }, 60);
+}
+function playHot(hs, btn) {
+  if (btn && btn.classList.contains('playing')) { stopReading(); return; }
+  if (hs.audio) playAudioData(hs.audio, btn);
+  else if ((hs.text || '').trim()) speakText(hs.text.trim(), btn);
 }
 function startReading() {
   if (!cur || cur.edit) return;
@@ -810,17 +834,65 @@ async function onReadEnd(my) {
   }
   R.on = false; updateReadBtn();
 }
-let hotCtx = null;
+let hotCtx = null, rec = null;
+const REC_MAX = 30;
 function openHotEditor(page, hs) {
-  hotCtx = { page, hs }; $('#hotText').value = hs.text; $('#hotEd').hidden = false; $('#hotText').focus();
+  hotCtx = { page, hs, audio: hs.audio || null };
+  $('#hotText').value = hs.text; $('#hotEd').hidden = false; $('#hotText').focus(); updateRecUI();
 }
 function closeHotEditor(remove) {
   if (!hotCtx) return;
-  const { page, hs } = hotCtx; hotCtx = null; $('#hotEd').hidden = true; stopReading();
-  hs.text = $('#hotText').value.trim();
-  if (remove || !hs.text) page.hot = page.hot.filter(x => x !== hs);
+  if (rec) { rec.discard = true; if (rec.mr.state !== 'inactive') rec.mr.stop(); }
+  const { page, hs, audio: au } = hotCtx; hotCtx = null; $('#hotEd').hidden = true; stopReading();
+  hs.text = $('#hotText').value.trim(); hs.audio = au;
+  if (remove || (!hs.text && !hs.audio)) page.hot = page.hot.filter(x => x !== hs);
   touch();
   if (cur && cur.book.pages[cur.idx] === page && !flipping) fillLeft(page);
+}
+function updateRecUI() {
+  const has = !!(hotCtx && hotCtx.audio), on = !!rec;
+  $('#recBtn').textContent = on ? '■ 녹음 끝내기' : has ? '● 다시 녹음' : '● 녹음하기';
+  $('#recBtn').classList.toggle('danger', on); $('#recBtn').classList.toggle('rec', on);
+  $('#recPlay').hidden = !has || on; $('#recDel').hidden = !has || on;
+  if (!on) $('#recInfo').textContent = has ? '✓ 녹음이 있어요. 버튼을 누르면 이 녹음이 나와요.' : '';
+}
+const blobToDataURL = (blob) => new Promise((res, rej) => {
+  const fr = new FileReader(); fr.onload = () => res(fr.result); fr.onerror = () => rej(fr.error); fr.readAsDataURL(blob);
+});
+async function toggleRec() {
+  if (rec) { rec.mr.stop(); return; }
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.MediaRecorder) {
+    toast('이 브라우저에서는 녹음을 쓸 수 없어요.'); return;
+  }
+  stopReading();
+  let stream;
+  try { stream = await navigator.mediaDevices.getUserMedia({ audio: true }); }
+  catch (e) { toast(e && e.name === 'NotAllowedError' ? '마이크 사용을 허용해 주세요.' : '마이크를 사용할 수 없어요.'); return; }
+  if (!hotCtx || rec) { stream.getTracks().forEach(t => t.stop()); return; }
+  const mime = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg;codecs=opus'].find(m => MediaRecorder.isTypeSupported(m)) || '';
+  let mr;
+  try { mr = new MediaRecorder(stream, mime ? { mimeType: mime, audioBitsPerSecond: 32000 } : { audioBitsPerSecond: 32000 }); }
+  catch { stream.getTracks().forEach(t => t.stop()); toast('녹음을 시작하지 못했어요.'); return; }
+  const r = { mr, chunks: [], discard: false, t0: Date.now(), timer: 0 }; rec = r;
+  mr.ondataavailable = (e) => { if (e.data && e.data.size) r.chunks.push(e.data); };
+  mr.onstop = async () => {
+    clearInterval(r.timer); stream.getTracks().forEach(t => t.stop());
+    if (rec === r) rec = null;
+    if (!r.discard && r.chunks.length) {
+      try {
+        const data = await blobToDataURL(new Blob(r.chunks, { type: mr.mimeType || mime || 'audio/webm' }));
+        if (hotCtx && !r.discard) hotCtx.audio = data;
+      } catch { toast('녹음을 저장하지 못했어요.'); }
+    }
+    updateRecUI();
+  };
+  mr.start();
+  const tick = () => {
+    const sec = (Date.now() - r.t0) / 1000;
+    $('#recInfo').textContent = `녹음 중… ${Math.floor(sec)}초 (최대 ${REC_MAX}초)`;
+    if (sec >= REC_MAX && mr.state !== 'inactive') mr.stop();
+  };
+  r.timer = setInterval(tick, 250); updateRecUI(); tick();
 }
 function addHot() {
   const p = cur.book.pages[cur.idx];
@@ -849,10 +921,13 @@ $('#firstBtn').onclick = goFirst;
 $('#hotOk').onclick = () => closeHotEditor(false);
 $('#hotDel').onclick = () => closeHotEditor(true);
 $('#hotTry').onclick = () => {
-  const t = $('#hotText').value.trim(); if (!t || !synth) return;
-  stopReading(); audio(); const u = makeUtter(t, rate); R.utter = u; const my = R.token;
-  setTimeout(() => { if (R.token === my) { try { synth.speak(u); } catch {} } }, 60);
+  if (!hotCtx) return;
+  const t = $('#hotText').value.trim();
+  if (hotCtx.audio) playAudioData(hotCtx.audio, null); else if (t) speakText(t, null);
 };
+$('#recBtn').onclick = toggleRec;
+$('#recPlay').onclick = () => hotCtx && hotCtx.audio && playAudioData(hotCtx.audio, null);
+$('#recDel').onclick = () => { if (hotCtx) { hotCtx.audio = null; updateRecUI(); } };
 $('#delBtn').onclick = deletePage;
 $('#moveLBtn').onclick = () => movePage(-1);
 $('#moveRBtn').onclick = () => movePage(1);
