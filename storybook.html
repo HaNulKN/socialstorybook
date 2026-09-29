@@ -148,6 +148,13 @@ button.noimg{width:100%;height:100%;border:0;background:transparent;cursor:point
 .hotbtn:active{filter:brightness(.9)}
 .hotbtn.editing{outline:3px dashed #2b7de9;outline-offset:3px;cursor:grab;touch-action:none}
 .imgframe.placing{cursor:crosshair;box-shadow:inset 0 0 0 4px #2b7de9}
+.coverpane{background:linear-gradient(#fff3d6,#ffe6b0);border-radius:0 8px 8px 0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4%;padding:7% 8%;text-align:center;cursor:pointer}
+.coverpane h2{margin:0;font-size:1.9em;line-height:1.3;word-break:keep-all;color:#5a3512}
+.coverpane .cimg{flex:1 1 0;min-height:0;width:100%;display:flex;align-items:center;justify-content:center}
+.coverpane .cimg img{max-width:100%;max-height:100%;object-fit:contain;border-radius:10px;box-shadow:0 4px 10px rgba(60,35,10,.3)}
+.coverpane .copen{font-size:.8em;font-weight:700;color:var(--ink2)}
+.book.cover,.book.cover .half.left{background:transparent}
+.book.cover .spine{display:none}
 .hotbtn.playing{background:#d9534f;animation:pulse .7s ease-in-out infinite}
 .leaf .hotbtn{pointer-events:none}
 @keyframes pulse{50%{transform:translate(-50%,-50%) scale(1.15)}}
@@ -221,7 +228,7 @@ button.noimg{width:100%;height:100%;border:0;background:transparent;cursor:point
 <!-- 책장 -->
 <main id="shelfView" class="view" hidden>
   <header class="bar shelf-head">
-    <h1>📚 내 이야기책 <small style="font-size:16px;font-weight:600;color:var(--ink2)">버전 9 · 표지 그림</small></h1>
+    <h1>📚 내 이야기책 <small style="font-size:16px;font-weight:600;color:var(--ink2)">버전 10 · 표지 먼저</small></h1>
     <button id="newBtn" class="btn primary">＋ 새 이야기책</button>
     <button id="importBtn" class="btn">파일 불러오기</button>
     <button id="exportAllBtn" class="btn">전체 파일로 저장</button>
@@ -314,7 +321,7 @@ button.noimg{width:100%;height:100%;border:0;background:transparent;cursor:point
       <label class="chip2"><input type="radio" name="psize" value="2"> 크게</label>
       <label class="chip2"><input type="radio" name="psize" value="2.6"> 아주 크게</label></div>
     <div id="traceInfo" class="pline2"></div></div>
-  <div class="pgrp"><label class="chk"><input type="checkbox" id="pName"> 표지에 “지은이” 쓰는 칸</label>
+  <div class="pgrp"><label class="chk"><input type="checkbox" id="pName"> 표지에 “이름” 쓰는 칸</label>
     <label class="chk" id="pSoundRow"><input type="checkbox" id="pSound"> 소리 버튼 자리에 🔊 표시</label></div>
   <p class="pguide" id="pGuide"></p>
   <div class="btns"><button id="printNo" class="btn">취소</button><button id="printGo" class="btn primary">🖨 인쇄하기</button></div>
@@ -355,6 +362,7 @@ const store = {
 };
 const blankPage = () => ({ id: uid(), img: null, text: '', hot: [], trace: [], paint: false });
 const titleOf = (b) => b.title.trim() || '제목 없는 이야기책';
+const coverImgOf = (b) => b.coverImg ? b.coverImg : b.coverImg === '' ? null : ((b.pages.find(p => p.img) || {}).img || null);
 
 let toastTimer;
 function toast(msg, ms = 3800) {
@@ -478,12 +486,12 @@ function renderShelf() {
   $('#empty').hidden = list.length > 0;
   $('#exportAllBtn').disabled = !list.length;
   for (const b of list) {
-    const coverPage = b.coverImg ? { img: b.coverImg } : b.coverImg === '' ? null : b.pages.find(p => p.img);
+    const cimg = coverImgOf(b);
     const open = () => openBook(b.id);
     grid.append(h('article', { class: 'card' },
       h('div', { class: 'cover', onclick: open, role: 'button', tabindex: '0', 'aria-label': titleOf(b) + ' 열기',
           onkeydown: (e) => { if (e.key === 'Enter') open(); } },
-        coverPage ? h('img', { src: coverPage.img, alt: '' }) : h('span', { class: 'ph', text: '📖' })),
+        cimg ? h('img', { src: cimg, alt: '' }) : h('span', { class: 'ph', text: '📖' })),
       h('h3', { text: titleOf(b), onclick: open }),
       h('div', { class: 'meta', text: `${b.pages.length}쪽 · ${fmtDate(b.updatedAt)} 수정` }),
       h('div', { class: 'acts' },
@@ -566,7 +574,7 @@ async function importFiles(files) {
 /* ---------- 책 열기 / 화면 ---------- */
 async function openBook(id, edit = false) {
   const b = books.find(x => x.id === id); if (!b) return;
-  cur = { book: b, idx: 0, edit };
+  cur = { book: b, idx: edit ? 0 : -1, edit };
   $('#shelfView').hidden = true; $('#bookView').hidden = false;
   setStatus(dbOK ? '' : 'nodb');
   renderBook();
@@ -698,19 +706,33 @@ function fillRight(page) {
   $('#paneR').replaceChildren(pane);
   liveBox = cur.edit ? null : pane.querySelector('.txt');
 }
+function blankPane() { return h('div', { class: 'pane' }); }
+function coverPane() {
+  const b = cur.book, src = coverImgOf(b);
+  const p = h('div', { class: 'pane coverpane' }, h('h2', { text: titleOf(b) }),
+    src && h('div', { class: 'cimg' }, h('img', { src, alt: '표지 그림', draggable: 'false' })),
+    h('div', { class: 'copen' }, '눌러서 책을 열어요 ▶'));
+  p.addEventListener('click', () => { if (!cur.edit) go(1); });
+  return p;
+}
+function fillLeftAt(i) { if (i < 0) $('#paneL').replaceChildren(blankPane()); else fillLeft(cur.book.pages[i]); }
+function fillRightAt(i) {
+  if (i < 0) { $('#paneR').replaceChildren(coverPane()); liveBox = null; } else fillRight(cur.book.pages[i]);
+}
 function updateInfo() {
-  const n = cur.book.pages.length;
-  $('#pageInfo').textContent = `${cur.idx + 1} / ${n} 쪽`;
-  $('#prevBtn').disabled = cur.idx <= 0;
-  $('#firstBtn').disabled = cur.idx <= 0;
-  $('#nextBtn').disabled = cur.idx >= n - 1;
-  $('#delBtn').disabled = n <= 1;
-  $('#moveLBtn').disabled = cur.idx <= 0;
-  $('#moveRBtn').disabled = cur.idx >= n - 1;
+  const n = cur.book.pages.length, i = cur.idx, min = cur.edit ? 0 : -1;
+  $('#book').classList.toggle('cover', i < 0);
+  $('#pageInfo').textContent = i < 0 ? '표지' : `${i + 1} / ${n} 쪽`;
+  $('#prevBtn').disabled = i <= min;
+  $('#firstBtn').disabled = i <= min;
+  $('#nextBtn').disabled = i >= n - 1;
+  $('#delBtn').disabled = n <= 1 || i < 0;
+  $('#moveLBtn').disabled = i <= 0;
+  $('#moveRBtn').disabled = i < 0 || i >= n - 1;
+  $('#placeBtn').disabled = i < 0;
 }
 function renderPanes() {
-  const p = cur.book.pages[cur.idx];
-  fillLeft(p); fillRight(p); updateInfo();
+  fillLeftAt(cur.idx); fillRightAt(cur.idx); updateInfo();
 }
 function renderBook() {
   const b = cur.book;
@@ -734,21 +756,23 @@ function renderBook() {
 function flipTo(newIdx) {
   return new Promise(res => {
     const pages = cur.book.pages, old = cur.idx;
-    if (flipping || newIdx === old || newIdx < 0 || newIdx >= pages.length) return res(false);
+    if (flipping || newIdx === old || newIdx < -1 || newIdx >= pages.length) return res(false);
     flipping = true;
-    const next = newIdx > old, oldP = pages[old], newP = pages[newIdx];
+    const next = newIdx > old;
+    const leftFace = (i) => i < 0 ? blankPane() : imagePane(pages[i], false, false);
+    const rightFace = (i) => i < 0 ? coverPane() : textPane(pages[i], false);
     cur.idx = newIdx; updateInfo(); playFlip();
     const leaf = h('div', { class: 'leaf ' + (next ? 'next' : 'prev') },
-      h('div', { class: 'face front' }, next ? textPane(oldP, false) : imagePane(oldP, false, false)),
-      h('div', { class: 'face back' }, next ? imagePane(newP, false, false) : textPane(newP, false)));
-    if (next) fillRight(newP); else fillLeft(newP);
+      h('div', { class: 'face front' }, next ? rightFace(old) : leftFace(old)),
+      h('div', { class: 'face back' }, next ? leftFace(newIdx) : rightFace(newIdx)));
+    if (next) fillRightAt(newIdx); else fillLeftAt(newIdx);
     $('#book').append(leaf);
     void leaf.offsetWidth;
     leaf.classList.add('turn');
     let done = false;
     const fin = () => {
       if (done) return; done = true;
-      if (next) fillLeft(newP); else fillRight(newP);
+      if (next) fillLeftAt(newIdx); else fillRightAt(newIdx);
       leaf.remove(); flipping = false; res(true);
     };
     leaf.addEventListener('transitionend', e => { if (e.target === leaf && e.propertyName === 'transform') fin(); });
@@ -757,6 +781,7 @@ function flipTo(newIdx) {
 }
 function go(delta) {
   if (!cur) return;
+  if (cur.edit && cur.idx + delta < 0) return;
   stopReading();
   flipTo(cur.idx + delta);
 }
@@ -764,7 +789,9 @@ function go(delta) {
 /* ---------- 편집 ---------- */
 function setEdit(v) {
   if (!cur || flipping) return;
-  stopReading(); cur.edit = v; cur.pick = false; cur.place = false; renderBook();
+  stopReading(); cur.edit = v; cur.pick = false; cur.place = false;
+  if (v && cur.idx < 0) cur.idx = 0;
+  renderBook();
 }
 function setPick(v) {
   if (!cur || !cur.edit || flipping) return;
@@ -929,6 +956,7 @@ function playHot(hs, btn) {
 }
 function startReading() {
   if (!cur || cur.edit) return;
+  if (cur.idx < 0) { speakText(titleOf(cur.book)); return; }   // 표지에서는 제목을 읽어 준다
   if (!synth || typeof SpeechSynthesisUtterance === 'undefined') { toast('이 기기에서는 읽어주기를 쓸 수 없어요.'); return; }
   const page = cur.book.pages[cur.idx];
   if (!page.text.trim()) { stopReading(); toast('이 쪽에는 읽을 글이 없어요.'); return; }
@@ -1041,11 +1069,11 @@ function addHot() {
   toast('소리 버튼은 끌어서 옮기고, 눌러서 말을 고칠 수 있어요.', 5000);
 }
 function setPlace(v) {
-  if (!cur || cur.edit || flipping) return;
+  if (!cur || cur.edit || flipping || cur.idx < 0) return;
   stopReading(); cur.place = v; renderBook();
   if (v) toast('그림에서 소리 버튼을 놓을 곳을 눌러요.\n만든 버튼을 누르면 고칠 수 있어요.', 5000);
 }
-function goFirst() { if (cur && cur.idx > 0) { stopReading(); flipTo(0); } }
+function goFirst() { const t = cur && cur.edit ? 0 : -1; if (cur && cur.idx > t) { stopReading(); flipTo(t); } }
 function toggleRead() { if (R.on) stopReading(); else startReading(); }
 
 /* ---------- 책으로 인쇄 ---------- */
@@ -1126,7 +1154,7 @@ async function buildPrint(o) {
   };
   const coverPage = book.coverImg ? { img: book.coverImg, hot: [] } : book.coverImg === '' ? null : book.pages.find(p => p.img);
   const title = titleOf(book), tpx = title.length <= 10 ? 56 : title.length <= 20 ? 44 : 34;
-  const cover = async (bw, bh) => `<div class="pcover"><h1 style="font-size:${tpx}px">${esc(title)}</h1>${coverPage ? await pic(coverPage, bw, bh, false, o.img === 'line' && book.paintCover !== false) : ''}${o.name ? '<div class="pname">지은이 <i></i></div>' : ''}</div>`;
+  const cover = async (bw, bh) => `<div class="pcover"><h1 style="font-size:${tpx}px">${esc(title)}</h1>${coverPage ? await pic(coverPage, bw, bh, false, o.img === 'line' && book.paintCover !== false) : ''}${o.name ? '<div class="pname">이름 <i></i></div>' : ''}</div>`;
   const halves = [];   // 소책자용 낱쪽 목록
   halves.push({ html: await cover(118, 110) });
   let num = 0;
