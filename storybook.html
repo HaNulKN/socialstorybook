@@ -171,6 +171,7 @@ button.noimg{width:100%;height:100%;border:0;background:transparent;cursor:point
 .chip[aria-pressed=true]{background:var(--accent);border-color:var(--accent-d);color:#fff}
 .chip2{display:inline-flex;align-items:center;gap:6px;font-size:19px;font-weight:700;cursor:pointer}
 .pnote{color:var(--ink2);font-size:16px;font-weight:400}
+#coverPrev{max-width:90px;max-height:110px;border:2px solid var(--line);border-radius:8px;background:#fff}
 #linePrev{max-width:180px;max-height:140px;border:2px solid var(--line);border-radius:10px;background:#fff}
 .pguide{background:#fff4e3;border-radius:14px;padding:12px 14px;font-size:18px;line-height:1.55;margin:0 0 16px!important;font-weight:400!important}
 #printDlg .btns{justify-content:center}
@@ -220,7 +221,7 @@ button.noimg{width:100%;height:100%;border:0;background:transparent;cursor:point
 <!-- 책장 -->
 <main id="shelfView" class="view" hidden>
   <header class="bar shelf-head">
-    <h1>📚 내 이야기책 <small style="font-size:16px;font-weight:600;color:var(--ink2)">버전 8 · 따라쓰기 크게</small></h1>
+    <h1>📚 내 이야기책 <small style="font-size:16px;font-weight:600;color:var(--ink2)">버전 9 · 표지 그림</small></h1>
     <button id="newBtn" class="btn primary">＋ 새 이야기책</button>
     <button id="importBtn" class="btn">파일 불러오기</button>
     <button id="exportAllBtn" class="btn">전체 파일로 저장</button>
@@ -288,6 +289,7 @@ button.noimg{width:100%;height:100%;border:0;background:transparent;cursor:point
 </section>
 
 <input type="file" id="imgFile" accept="image/*" hidden>
+<input type="file" id="coverFile" accept="image/*" hidden>
 <input type="file" id="importFile" accept=".json,.storybook.json,application/json" multiple hidden>
 <div id="toast" role="status" aria-live="polite"></div>
 <div id="printDlg" hidden><div class="box">
@@ -295,6 +297,9 @@ button.noimg{width:100%;height:100%;border:0;background:transparent;cursor:point
   <div class="pgrp"><h3>만드는 방식</h3>
     <label class="opt"><input type="radio" name="pmode" value="booklet"><span>접는 소책자 (추천)<small>A4 종이 앞뒤에 인쇄해서 반으로 접으면 A5 책이 돼요. 가운데를 스테이플러로 찍어요.</small></span></label>
     <label class="opt"><input type="radio" name="pmode" value="spread"><span>펼침면 한 장씩<small>A4 가로 한 장에 한 쪽(왼쪽 그림, 오른쪽 글). 왼쪽을 묶어요.</small></span></label></div>
+  <div class="pgrp"><h3>표지 그림</h3>
+    <div class="pline2"><img id="coverPrev" alt="" hidden><span id="coverState"></span></div>
+    <div class="chips"><button type="button" class="btn small" id="coverUp">표지 그림 올리기</button><button type="button" class="btn small" id="coverAuto">첫 쪽 그림 쓰기</button><button type="button" class="btn small" id="coverNone">그림 없이</button></div></div>
   <div class="pgrp"><h3>그림</h3>
     <label class="opt"><input type="radio" name="pimg" value="color"><span>원래 색 그대로</span></label>
     <label class="opt"><input type="radio" name="pimg" value="line"><span>색칠하기용 (윤곽선만)<small>컬러 그림을 선만 남긴 색칠 도안으로 바꿔요.</small></span></label>
@@ -473,7 +478,7 @@ function renderShelf() {
   $('#empty').hidden = list.length > 0;
   $('#exportAllBtn').disabled = !list.length;
   for (const b of list) {
-    const coverPage = b.pages.find(p => p.img);
+    const coverPage = b.coverImg ? { img: b.coverImg } : b.coverImg === '' ? null : b.pages.find(p => p.img);
     const open = () => openBook(b.id);
     grid.append(h('article', { class: 'card' },
       h('div', { class: 'cover', onclick: open, role: 'button', tabindex: '0', 'aria-label': titleOf(b) + ' 열기',
@@ -537,7 +542,8 @@ function normBook(o) {
   const now = Date.now();
   return { id: uid(), title: String(o.title || '').slice(0, 60) || '제목 없는 이야기책',
     createdAt: Number(o.createdAt) || now, updatedAt: now, pages,
-    paintCover: o.paintCover === undefined ? true : !!o.paintCover };
+    paintCover: o.paintCover === undefined ? true : !!o.paintCover,
+    coverImg: typeof o.coverImg === 'string' && (o.coverImg === '' || o.coverImg.startsWith('data:image/')) ? o.coverImg : undefined };
 }
 async function importFiles(files) {
   let ok = 0; const bad = [];
@@ -1118,7 +1124,7 @@ async function buildPrint(o) {
     const dots = marks ? (page.hot || []).map(hs => `<span class="pmark" style="left:${hs.x * 100}%;top:${hs.y * 100}%">🔊</span>`).join('') : '';
     return `<div class="pimg ${paint ? 'pframe' : ''}" style="width:${w.toFixed(1)}mm;height:${hh.toFixed(1)}mm"><img src="${r.src}" alt="">${dots}</div>`;
   };
-  const coverPage = book.pages.find(p => p.img);
+  const coverPage = book.coverImg ? { img: book.coverImg, hot: [] } : book.coverImg === '' ? null : book.pages.find(p => p.img);
   const title = titleOf(book), tpx = title.length <= 10 ? 56 : title.length <= 20 ? 44 : 34;
   const cover = async (bw, bh) => `<div class="pcover"><h1 style="font-size:${tpx}px">${esc(title)}</h1>${coverPage ? await pic(coverPage, bw, bh, false, o.img === 'line' && book.paintCover !== false) : ''}${o.name ? '<div class="pname">지은이 <i></i></div>' : ''}</div>`;
   const halves = [];   // 소책자용 낱쪽 목록
@@ -1158,6 +1164,9 @@ function refreshPrintDlg() {
   const o = readPrintOpts(), n = cur.book.pages.length;
   $('#sizeRow').hidden = o.text === 'plain';
   $('#lineOpts').hidden = o.img !== 'line'; $('#paintPick').hidden = o.img !== 'line';
+  const b = cur.book, cp = b.coverImg ? b.coverImg : b.coverImg === '' ? null : (b.pages.find(p => p.img) || {}).img;
+  $('#coverPrev').hidden = !cp; if (cp) $('#coverPrev').src = cp;
+  $('#coverState').textContent = b.coverImg ? '올려 둔 표지 그림을 써요.' : b.coverImg === '' ? '표지에 그림을 넣지 않아요.' : cp ? '첫 쪽의 그림을 표지에 써요.' : '표지에 넣을 그림이 없어요.';
   const chips = $('#paintChips'); chips.replaceChildren();
   const chip = (label, on, fn) => chips.append(h('button', { type: 'button', class: 'chip', 'aria-pressed': String(on), onclick: () => { fn(); touch(); refreshPrintDlg(); } }, label));
   chip('표지', cur.book.paintCover !== false, () => { cur.book.paintCover = cur.book.paintCover === false; });
@@ -1223,6 +1232,14 @@ $('#addBtn').onclick = addPage;
 $('#placeBtn').onclick = () => setPlace(!cur.place);
 $('#pickBtn').onclick = () => setPick(!cur.pick);
 $('#printBtn').onclick = openPrintDlg;
+$('#coverUp').onclick = () => { $('#coverFile').value = ''; $('#coverFile').click(); };
+$('#coverAuto').onclick = () => { delete cur.book.coverImg; touch(); refreshPrintDlg(); };
+$('#coverNone').onclick = () => { cur.book.coverImg = ''; touch(); refreshPrintDlg(); };
+$('#coverFile').addEventListener('change', async (e) => {
+  const f = e.target.files[0]; if (!f || !cur) return;
+  try { cur.book.coverImg = await resizeImage(f); touch(); refreshPrintDlg(); }
+  catch (err) { console.error(err); toast('이 그림은 불러올 수 없어요.\n다른 사진(JPG, PNG)을 골라 주세요.'); }
+});
 $('#paintCoverOnly').onclick = () => { cur.book.paintCover = true; cur.book.pages.forEach(p => { p.paint = false; }); touch(); refreshPrintDlg(); };
 $('#paintAll').onclick = () => { cur.book.paintCover = true; cur.book.pages.forEach(p => { p.paint = true; }); touch(); refreshPrintDlg(); };
 $('#printNo').onclick = () => { $('#printDlg').hidden = true; };
