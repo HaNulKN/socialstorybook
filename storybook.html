@@ -147,6 +147,7 @@ button.noimg{width:100%;height:100%;border:0;background:transparent;cursor:point
   box-shadow:0 3px 8px rgba(60,35,10,.45);touch-action:manipulation;padding:0}
 .hotbtn:active{filter:brightness(.9)}
 .hotbtn.editing{outline:3px dashed #2b7de9;outline-offset:3px;cursor:grab;touch-action:none}
+.imgframe.placing{cursor:crosshair;box-shadow:inset 0 0 0 4px #2b7de9}
 .hotbtn.playing{background:#d9534f;animation:pulse .7s ease-in-out infinite}
 .leaf .hotbtn{pointer-events:none}
 @keyframes pulse{50%{transform:translate(-50%,-50%) scale(1.15)}}
@@ -218,7 +219,7 @@ button.noimg{width:100%;height:100%;border:0;background:transparent;cursor:point
 <!-- 책장 -->
 <main id="shelfView" class="view" hidden>
   <header class="bar shelf-head">
-    <h1>📚 내 이야기책 <small style="font-size:16px;font-weight:600;color:var(--ink2)">버전 6 · 쪽별 색칠 선택</small></h1>
+    <h1>📚 내 이야기책 <small style="font-size:16px;font-weight:600;color:var(--ink2)">버전 7 · 수업 중 소리 버튼</small></h1>
     <button id="newBtn" class="btn primary">＋ 새 이야기책</button>
     <button id="importBtn" class="btn">파일 불러오기</button>
     <button id="exportAllBtn" class="btn">전체 파일로 저장</button>
@@ -276,6 +277,7 @@ button.noimg{width:100%;height:100%;border:0;background:transparent;cursor:point
         <input type="range" id="rate" min="0.5" max="1.5" step="0.1" value="0.9" aria-label="읽기 속도">
         <output id="rateOut">0.9배</output></label>
       <label class="chk"><input type="checkbox" id="autoChk"> 다 읽으면 다음 쪽으로</label>
+      <button id="placeBtn" class="btn toggle" aria-pressed="false">🔊 소리 버튼 만들기</button>
       <span class="grp">
         <button id="fsMinus" class="btn" aria-label="글자 작게">A−</button>
         <button id="fsPlus" class="btn" aria-label="글자 크게">A+</button>
@@ -596,12 +598,13 @@ function hotButton(page, hs, editable, layer) {
   b.addEventListener('click', (e) => { if (e.detail === 0) openHotEditor(page, hs); }); // 키보드
   return b;
 }
-function imagePane(page, editable) {
+function imagePane(page, editable, live = true) {
+  const hotEdit = editable || (live && !!cur.place);
   const frame = h('div', { class: 'imgframe' });
   if (page.img) {
     const img = h('img', { src: page.img, alt: '이야기 그림', draggable: 'false' });
     const layer = h('div', { class: 'hots' });
-    for (const hs of (page.hot || [])) layer.append(hotButton(page, hs, editable, layer));
+    for (const hs of (page.hot || [])) layer.append(hotButton(page, hs, hotEdit, layer));
     frame._lay = () => {   // 소리 버튼 층을 실제 그림 영역에 맞춘다
       if (!img.naturalWidth) return;
       const fw = frame.clientWidth, fh = frame.clientHeight, r = img.naturalWidth / img.naturalHeight;
@@ -610,6 +613,16 @@ function imagePane(page, editable) {
     };
     img.addEventListener('load', frame._lay); hotRO.observe(frame);
     frame.append(img, layer);
+    if (!editable && hotEdit) {   // 수업 중 소리 버튼 만들기: 그림을 눌러 놓을 곳을 정한다
+      frame.classList.add('placing');
+      frame.addEventListener('click', (e) => {
+        if (e.target.closest('.hotbtn')) return;
+        const r = layer.getBoundingClientRect();
+        const x = (e.clientX - r.left) / r.width, y = (e.clientY - r.top) / r.height;
+        if (x < 0 || x > 1 || y < 0 || y > 1) return;
+        createHot(page, clamp(x, 0.06, 0.94), clamp(y, 0.06, 0.94));
+      });
+    }
   } else if (editable) frame.append(h('button', { class: 'noimg', onclick: () => pickImage(page) }, '＋ 그림 올리기'));
   else frame.append(h('div', { class: 'noimg' }, '그림이 없어요'));
   const p = h('div', { class: 'pane' + (editable ? ' tools' : '') }, frame);
@@ -695,6 +708,9 @@ function renderBook() {
   $('#editBtn').setAttribute('aria-pressed', String(cur.edit));
   $('#editBtn').textContent = cur.edit ? '✏️ 편집 중 (끝내기)' : '✏️ 편집 모드';
   $('#editRow').hidden = !cur.edit;
+  $('#placeBtn').hidden = cur.edit;
+  $('#placeBtn').setAttribute('aria-pressed', String(!!cur.place));
+  $('#placeBtn').textContent = cur.place ? '🔊 소리 버튼 만들기 끝내기' : '🔊 소리 버튼 만들기';
   $('#pickBtn').setAttribute('aria-pressed', String(!!cur.pick));
   $('#pickBtn').textContent = cur.pick ? '✍ 단어 고르는 중 (끝내기)' : '✍ 따라쓸 단어 고르기';
   $('#readBtn').disabled = cur.edit;
@@ -712,8 +728,8 @@ function flipTo(newIdx) {
     const next = newIdx > old, oldP = pages[old], newP = pages[newIdx];
     cur.idx = newIdx; updateInfo(); playFlip();
     const leaf = h('div', { class: 'leaf ' + (next ? 'next' : 'prev') },
-      h('div', { class: 'face front' }, next ? textPane(oldP, false) : imagePane(oldP, false)),
-      h('div', { class: 'face back' }, next ? imagePane(newP, false) : textPane(newP, false)));
+      h('div', { class: 'face front' }, next ? textPane(oldP, false) : imagePane(oldP, false, false)),
+      h('div', { class: 'face back' }, next ? imagePane(newP, false, false) : textPane(newP, false)));
     if (next) fillRight(newP); else fillLeft(newP);
     $('#book').append(leaf);
     void leaf.offsetWidth;
@@ -737,7 +753,7 @@ function go(delta) {
 /* ---------- 편집 ---------- */
 function setEdit(v) {
   if (!cur || flipping) return;
-  stopReading(); cur.edit = v; cur.pick = false; renderBook();
+  stopReading(); cur.edit = v; cur.pick = false; cur.place = false; renderBook();
 }
 function setPick(v) {
   if (!cur || !cur.edit || flipping) return;
@@ -1003,12 +1019,20 @@ async function toggleRec() {
   };
   r.timer = setInterval(tick, 250); updateRecUI(); tick();
 }
+function createHot(p, x, y) {
+  const hs = { id: uid(), x, y, text: '' };
+  (p.hot = p.hot || []).push(hs); fillLeft(p); openHotEditor(p, hs);
+}
 function addHot() {
   const p = cur.book.pages[cur.idx];
   if (!p.img) { toast('먼저 그림을 올려 주세요.'); return; }
-  const hs = { id: uid(), x: 0.5, y: 0.5, text: '' };
-  (p.hot = p.hot || []).push(hs); fillLeft(p); openHotEditor(p, hs);
+  createHot(p, 0.5, 0.5);
   toast('소리 버튼은 끌어서 옮기고, 눌러서 말을 고칠 수 있어요.', 5000);
+}
+function setPlace(v) {
+  if (!cur || cur.edit || flipping) return;
+  stopReading(); cur.place = v; renderBook();
+  if (v) toast('그림에서 소리 버튼을 놓을 곳을 눌러요.\n만든 버튼을 누르면 고칠 수 있어요.', 5000);
 }
 function goFirst() { if (cur && cur.idx > 0) { stopReading(); flipTo(0); } }
 function toggleRead() { if (R.on) stopReading(); else startReading(); }
@@ -1189,6 +1213,7 @@ $('#titleIn').addEventListener('input', (e) => { cur.book.title = e.target.value
 $('#prevBtn').onclick = () => go(-1);
 $('#nextBtn').onclick = () => go(1);
 $('#addBtn').onclick = addPage;
+$('#placeBtn').onclick = () => setPlace(!cur.place);
 $('#pickBtn').onclick = () => setPick(!cur.pick);
 $('#printBtn').onclick = openPrintDlg;
 $('#paintCoverOnly').onclick = () => { cur.book.paintCover = true; cur.book.pages.forEach(p => { p.paint = false; }); touch(); refreshPrintDlg(); };
