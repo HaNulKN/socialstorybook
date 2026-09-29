@@ -165,6 +165,10 @@ button.noimg{width:100%;height:100%;border:0;background:transparent;cursor:point
 .opt input{margin-top:3px}
 .opt small{display:block;font-size:17px;font-weight:400;color:var(--ink2)}
 .pline2{display:flex;align-items:center;gap:12px;font-size:19px;font-weight:700;flex-wrap:wrap;margin:4px 0 6px}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0}
+.chip{min-width:56px;min-height:48px;padding:0 14px;border:3px solid var(--line);border-radius:14px;background:#fff;font-size:19px;font-weight:700;cursor:pointer}
+.chip[aria-pressed=true]{background:var(--accent);border-color:var(--accent-d);color:#fff}
+.pnote{color:var(--ink2);font-size:16px;font-weight:400}
 #linePrev{max-width:180px;max-height:140px;border:2px solid var(--line);border-radius:10px;background:#fff}
 .pguide{background:#fff4e3;border-radius:14px;padding:12px 14px;font-size:18px;line-height:1.55;margin:0 0 16px!important;font-weight:400!important}
 #printDlg .btns{justify-content:center}
@@ -291,7 +295,8 @@ button.noimg{width:100%;height:100%;border:0;background:transparent;cursor:point
   <div class="pgrp"><h3>그림</h3>
     <label class="opt"><input type="radio" name="pimg" value="color"><span>원래 색 그대로</span></label>
     <label class="opt"><input type="radio" name="pimg" value="line"><span>색칠하기용 (윤곽선만)<small>컬러 그림을 선만 남긴 색칠 도안으로 바꿔요.</small></span></label>
-    <div class="pline2" id="lineOpts" hidden><label>선 진하기 <input type="range" id="lineLevel" min="0" max="100" step="5" value="50"></label><canvas id="linePrev" width="10" height="10"></canvas></div></div>
+    <div class="pline2" id="lineOpts" hidden><label>선 진하기 <input type="range" id="lineLevel" min="0" max="100" step="5" value="50"></label><canvas id="linePrev" width="10" height="10"></canvas></div>
+    <div id="paintPick" hidden><div class="pline2">색칠 도안으로 바꿀 쪽 <button type="button" class="btn small" id="paintCoverOnly">표지만</button><button type="button" class="btn small" id="paintAll">전체</button></div><div id="paintChips" class="chips"></div><small class="pnote">고르지 않은 쪽은 원래 색 그림으로 인쇄돼요.</small></div></div>
   <div class="pgrp"><h3>글</h3>
     <label class="opt"><input type="radio" name="ptext" value="plain"><span>그대로</span></label>
     <label class="opt"><input type="radio" name="ptext" value="dots"><span>따라쓰기 (점선 글씨)<small>고른 단어만 점선으로 나와요. 연필로 따라 써요.</small></span></label>
@@ -336,7 +341,7 @@ const store = {
   get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : v; } catch { return d; } },
   set(k, v) { try { localStorage.setItem(k, String(v)); } catch {} }
 };
-const blankPage = () => ({ id: uid(), img: null, text: '', hot: [], trace: [] });
+const blankPage = () => ({ id: uid(), img: null, text: '', hot: [], trace: [], paint: false });
 const titleOf = (b) => b.title.trim() || '제목 없는 이야기책';
 
 let toastTimer;
@@ -513,6 +518,7 @@ function normBook(o) {
     id: uid(),
     img: p && typeof p.img === 'string' && p.img.startsWith('data:image/') ? p.img : null,
     text: p && typeof p.text === 'string' ? p.text : '',
+    paint: !!(p && p.paint),
     trace: p && Array.isArray(p.trace) ? p.trace.filter(x => typeof x === 'string' && x && x.length <= 30).slice(0, 100) : [],
     hot: p && Array.isArray(p.hot) ? p.hot.map(x => x && ({
       id: uid(), x: clamp(Number(x.x) || 0.5, 0.06, 0.94), y: clamp(Number(x.y) || 0.5, 0.06, 0.94),
@@ -523,7 +529,8 @@ function normBook(o) {
   if (!pages.length) pages.push(blankPage());
   const now = Date.now();
   return { id: uid(), title: String(o.title || '').slice(0, 60) || '제목 없는 이야기책',
-    createdAt: Number(o.createdAt) || now, updatedAt: now, pages };
+    createdAt: Number(o.createdAt) || now, updatedAt: now, pages,
+    paintCover: o.paintCover === undefined ? true : !!o.paintCover };
 }
 async function importFiles(files) {
   let ok = 0; const bad = [];
@@ -1069,26 +1076,26 @@ function textHtml(page, mode) {
 }
 async function buildPrint(o) {
   const book = cur.book, cache = new Map();
-  const srcOf = async (page) => {
-    if (o.img !== 'line') return { src: page.img, img: await loadImg(page.img) };
+  const srcOf = async (page, paint) => {
+    if (!paint) return { src: page.img, img: await loadImg(page.img) };
     if (!cache.has(page.img)) { const im = await loadImg(page.img); const c = lineArt(im, o.level); cache.set(page.img, { src: c.toDataURL('image/png'), img: c }); }
     return cache.get(page.img);
   };
-  const pic = async (page, bw, bh, marks) => {
+  const pic = async (page, bw, bh, marks, paint) => {
     if (!page.img) return '';
-    const r = await srcOf(page), nw = r.img.naturalWidth || r.img.width, nh = r.img.naturalHeight || r.img.height;
+    const r = await srcOf(page, paint), nw = r.img.naturalWidth || r.img.width, nh = r.img.naturalHeight || r.img.height;
     const k = Math.min(bw / nw, bh / nh), w = nw * k, hh = nh * k;
     const dots = marks ? (page.hot || []).map(hs => `<span class="pmark" style="left:${hs.x * 100}%;top:${hs.y * 100}%">🔊</span>`).join('') : '';
-    return `<div class="pimg ${o.img === 'line' ? 'pframe' : ''}" style="width:${w.toFixed(1)}mm;height:${hh.toFixed(1)}mm"><img src="${r.src}" alt="">${dots}</div>`;
+    return `<div class="pimg ${paint ? 'pframe' : ''}" style="width:${w.toFixed(1)}mm;height:${hh.toFixed(1)}mm"><img src="${r.src}" alt="">${dots}</div>`;
   };
   const coverPage = book.pages.find(p => p.img);
   const title = titleOf(book), tpx = title.length <= 10 ? 56 : title.length <= 20 ? 44 : 34;
-  const cover = async (bw, bh) => `<div class="pcover"><h1 style="font-size:${tpx}px">${esc(title)}</h1>${coverPage ? await pic(coverPage, bw, bh, false) : ''}${o.name ? '<div class="pname">지은이 <i></i></div>' : ''}</div>`;
+  const cover = async (bw, bh) => `<div class="pcover"><h1 style="font-size:${tpx}px">${esc(title)}</h1>${coverPage ? await pic(coverPage, bw, bh, false, o.img === 'line' && book.paintCover !== false) : ''}${o.name ? '<div class="pname">지은이 <i></i></div>' : ''}</div>`;
   const halves = [];   // 소책자용 낱쪽 목록
   halves.push({ html: await cover(118, 110) });
   let num = 0;
   for (const p of book.pages) {
-    halves.push({ html: await pic(p, 118, 172, o.sound), num: ++num });
+    halves.push({ html: await pic(p, 118, 172, o.sound, o.img === 'line' && !!p.paint), num: ++num });
     const t = textHtml(p, o.text);
     halves.push({ html: `<div class="ptext" style="font-size:${t.px}px">${t.html}</div>`, num: ++num });
   }
@@ -1109,7 +1116,7 @@ async function buildPrint(o) {
   }
   return sheets;
 }
-const PSETTINGS = { mode: 'booklet', img: 'color', text: 'plain', level: 50, name: true, sound: false };
+const PSETTINGS = { mode: 'booklet', img: 'color', text: 'dots', level: 50, name: true, sound: false };
 try { Object.assign(PSETTINGS, JSON.parse(store.get('ssb.print', '{}'))); } catch {}
 const radio = (name) => (document.querySelector(`input[name=${name}]:checked`) || {}).value;
 let prevTimer = null;
@@ -1119,7 +1126,11 @@ function readPrintOpts() {
 }
 function refreshPrintDlg() {
   const o = readPrintOpts(), n = cur.book.pages.length;
-  $('#lineOpts').hidden = o.img !== 'line';
+  $('#lineOpts').hidden = o.img !== 'line'; $('#paintPick').hidden = o.img !== 'line';
+  const chips = $('#paintChips'); chips.replaceChildren();
+  const chip = (label, on, fn) => chips.append(h('button', { type: 'button', class: 'chip', 'aria-pressed': String(on), onclick: () => { fn(); touch(); refreshPrintDlg(); } }, label));
+  chip('표지', cur.book.paintCover !== false, () => { cur.book.paintCover = cur.book.paintCover === false; });
+  cur.book.pages.forEach((p, i) => chip(`${i + 1}쪽`, !!p.paint, () => { p.paint = !p.paint; }));
   const sheets = Math.ceil((2 * n + 2) / 4);
   $('#pGuide').textContent = o.mode === 'booklet'
     ? `종이 ${sheets}장(앞뒤 인쇄)이 나와요. 인쇄창에서 용지 A4 · 가로 · 배율 100% · 여백 없음 · 배경 그래픽 켜기, 양면은 “짧은 가장자리(짧은 변)로 넘기기”를 고르세요. 처음엔 1~2쪽만 시험 인쇄해서 앞뒤 방향이 맞는지 확인해 보세요. 뽑은 종이를 순서대로 겹쳐 반으로 접고, 접힌 가운데를 스테이플러로 찍어요.`
@@ -1180,6 +1191,8 @@ $('#nextBtn').onclick = () => go(1);
 $('#addBtn').onclick = addPage;
 $('#pickBtn').onclick = () => setPick(!cur.pick);
 $('#printBtn').onclick = openPrintDlg;
+$('#paintCoverOnly').onclick = () => { cur.book.paintCover = true; cur.book.pages.forEach(p => { p.paint = false; }); touch(); refreshPrintDlg(); };
+$('#paintAll').onclick = () => { cur.book.paintCover = true; cur.book.pages.forEach(p => { p.paint = true; }); touch(); refreshPrintDlg(); };
 $('#printNo').onclick = () => { $('#printDlg').hidden = true; };
 $('#printGo').onclick = doPrint;
 $('#printDlg').addEventListener('input', () => { if (!$('#printDlg').hidden) refreshPrintDlg(); });
